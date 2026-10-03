@@ -1,0 +1,40 @@
+# Local development stack: FastAPI + PostgreSQL
+#   1. docker compose up -d --wait db        # waits until Postgres accepts connections
+#   2. DATABASE_URL=postgresql+asyncpg://insurance:localdev@localhost:5432/insurance \
+#        .venv/bin/alembic upgrade head        # the API image cannot run migrations
+#   3. docker compose up -d api               # or run uvicorn directly (see README)
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: insurance
+      POSTGRES_USER: insurance
+      POSTGRES_PASSWORD: localdev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insurance"]
+      interval: 5s
+      retries: 5
+
+  # Optional: run the API alongside the DB.
+  # Remove this service if you prefer to run uvicorn directly.
+  api:
+    build: .
+    environment:
+      ENV: local
+      LOG_LEVEL: DEBUG
+      REPOSITORY_BACKEND: postgres
+      DATABASE_URL: postgresql+asyncpg://insurance:localdev@db:5432/insurance
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

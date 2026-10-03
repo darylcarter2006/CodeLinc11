@@ -1,0 +1,27 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { Layout } from './components/Layout'
+import { HomeRedirect, RouteGuard } from './components/RouteGuard'
+import { AuthPage } from './pages/AuthPage'
+import { BreakdownPage } from './pages/BreakdownPage'
+import { ChatPage } from './pages/ChatPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { MyInfoPage } from './pages/MyInfoPage'
+import { OnboardingPage } from './pages/OnboardingPage'
+
+/* Routes: auth → onboarding → app tabs. Guards send each user to the area they belong in. */
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<HomeRedirect />} />
+        <Route path="auth" element={<RouteGuard area="auth"><AuthPage /></RouteGuard>} />
+        <Route path="onboarding" element={<RouteGuard area="onboarding"><OnboardingPage /></RouteGuard>} />
+        <Route path="dashboard" element={<RouteGuard area="app"><DashboardPage /></RouteGuard>} />
+        <Route path="breakdown" element={<RouteGuard area="app"><BreakdownPage /></RouteGuard>} />
+        <Route path="info" element={<RouteGuard area="app"><MyInfoPage /></RouteGuard>} />
+        <Route path="chat" element={<RouteGuard area="app"><ChatPage /></RouteGuard>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  )
+}

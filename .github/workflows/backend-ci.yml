@@ -20,6 +20,21 @@ jobs:
     defaults:
       run:
         working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: insurance_test
+          POSTGRES_USER: insurance
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -40,8 +55,19 @@ jobs:
       - name: Type check
         run: mypy app tests
 
-      - name: Tests
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://insurance:testpass@localhost:5432/insurance_test
+        run: alembic upgrade head
+
+      - name: Tests (in-memory store)
         run: pytest --cov=app --cov-fail-under=90
+
+      - name: API tests (PostgreSQL store)
+        env:
+          REPOSITORY_BACKEND: postgres
+          DATABASE_URL: postgresql+asyncpg://insurance:testpass@localhost:5432/insurance_test
+        run: pytest tests/api
 
       - name: Build container image
         run: docker build -t insurance-backend:${{ github.sha }} .

@@ -35,7 +35,23 @@ class Container:
 
 
 def build_repository(settings: Settings) -> SessionRepository:
-    # "postgres" is added here in implementation step 4 (see docs/blueprint.md §13).
+    if settings.repository_backend == "postgres":
+        if not settings.database_url:
+            raise RuntimeError("REPOSITORY_BACKEND=postgres requires DATABASE_URL to be set.")
+        from app.db.session import build_engine
+        from app.repositories.postgres import PostgresSessionRepository
+
+        build_engine(
+            settings.database_url,
+            pool_size=settings.db_pool_size,
+            max_overflow=settings.db_max_overflow,
+            ssl_root_cert=settings.db_ssl_root_cert,
+        )
+        return PostgresSessionRepository(
+            max_messages_per_session=settings.message_history_turns * 2
+        )
+
+    # Default: in-memory (no database required).
     return InMemorySessionRepository(max_messages_per_session=settings.message_history_turns * 2)
 
 

@@ -82,6 +82,10 @@ class SessionRepository(ABC):
     async def ping(self) -> bool:
         """Readiness check: can the store serve requests?"""
 
+    async def aclose(self) -> None:
+        """Release resources (connection pools) on shutdown. Default: nothing to do."""
+        return None
+
     @asynccontextmanager
     async def session_lock(self, session_id: str) -> AsyncIterator[None]:
         """Serialize work on one session where the backend supports it.
