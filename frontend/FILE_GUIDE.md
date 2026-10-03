@@ -104,10 +104,3 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 |---|---|
 | `../docs/coverage-compass/` | The handoff spec, prototype and design tokens this front end implements. |
 | `../.github/workflows/frontend-ci.yml` | CI on pull requests: lint, tests, type check and build. |
-
-## Leftover files
-
-`src/api/`, `src/session/`, `src/utils/`, and the old Planner pages and components
-(`HomePage`, `PlannerPage`, `ProfilePage`, `LearnPage`, `NotFoundPage`, `AssessmentPanel`,
-`ChatPanel`, `ExpenseEditor`, `QuestionInput`) are from the earlier UI, are no longer used, and
-can be deleted.
