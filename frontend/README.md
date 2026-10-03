@@ -168,9 +168,3 @@ src/
   pages/       Auth, Onboarding, Dashboard, Breakdown, MyInfo, Chat
   test/        Vitest setup and the end-to-end flow test
 ```
-
-## Leftover files to delete
-
-These belong to the earlier Planner UI, are no longer imported, and can be removed:
-`src/api/`, `src/session/`, `src/utils/`, `src/pages/{HomePage,PlannerPage,ProfilePage,LearnPage,NotFoundPage}.tsx`,
-and `src/components/{AssessmentPanel,ChatPanel,ExpenseEditor,QuestionInput}.tsx`.
