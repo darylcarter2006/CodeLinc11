@@ -21,8 +21,14 @@ class Settings(BaseSettings):
     )
 
     repository_backend: Literal["memory"] = "memory"
-    ai_provider: Literal["stub"] = "stub"
+    ai_provider: Literal["stub", "bedrock"] = "stub"
     ai_timeout_seconds: float = 15.0
+
+    # Bedrock — only required when ai_provider == "bedrock"
+    bedrock_model_id: str = "amazon.nova-lite-v1:0"
+    bedrock_region: str = "us-east-1"
+    bedrock_guardrail_id: str | None = None
+    bedrock_guardrail_version: str | None = None
 
     session_ttl_hours: int = Field(default=4, ge=1, le=72)
     session_turn_limit: int = Field(default=40, ge=1)

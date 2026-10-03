@@ -24,10 +24,14 @@ CONVERSATION = [
 
 
 def test_full_conversation_reaches_blueprint_example(session: SessionHandle) -> None:
-    for text in CONVERSATION:
+    for text in CONVERSATION[:-1]:
         response = session.say(text)
         assert response.status_code == 200, response.text
         assert "warnings" in response.json()
+
+    response = session.say(CONVERSATION[-1])
+    assert response.status_code == 200, response.text
+    assert "warnings" in response.json()
 
     body = response.json()
     assert body["next_question"]["field"] == "review"

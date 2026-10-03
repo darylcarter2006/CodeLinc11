@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+UTC = timezone.utc
 
 from app.ai.base import AIAdapter
+from app.ai.bedrock import BedrockAIAdapter
 from app.ai.stub import StubAIAdapter
 from app.repositories.base import SessionRepository
 from app.repositories.memory import InMemorySessionRepository
@@ -37,7 +40,13 @@ def build_repository(settings: Settings) -> SessionRepository:
 
 
 def build_ai_adapter(settings: Settings) -> AIAdapter:
-    # "bedrock" is added here in implementation step 5.
+    if settings.ai_provider == "bedrock":
+        return BedrockAIAdapter(
+            model_id=settings.bedrock_model_id,
+            region=settings.bedrock_region,
+            guardrail_id=settings.bedrock_guardrail_id,
+            guardrail_version=settings.bedrock_guardrail_version,
+        )
     return StubAIAdapter()
 
 
