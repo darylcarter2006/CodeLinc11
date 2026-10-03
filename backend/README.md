@@ -78,6 +78,27 @@ tests/
 | GET | `/v1/sessions/{id}/assessments/latest` | Latest saved, with `is_current` / `stale_reason` |
 | POST | `/v1/sessions/{id}/scenarios` | What-if overrides; nothing saved |
 | GET | `/v1/content/coverage-types` | Term vs permanent education copy |
+| POST | `/v1/ai/extract` | Coverage Compass onboarding: pull profile fields from one answer |
+| POST | `/v1/ai/chat` | Coverage Compass chat: streamed `text/plain` answer |
+
+### Coverage Compass AI endpoints
+
+These follow the contract in [../frontend/README.md](../frontend/README.md) ("Backend AI
+contract"), including its camelCase field names. They need no session or token, because the
+frontend calls them before an account exists, so they are rate limited per client IP
+(`AI_RATE_LIMIT_PER_MINUTE`, default 20).
+
+- **No model configured (the default stub):** both return **503** `ai_unavailable`. The
+  frontend then uses its local parser and standard answers.
+- **Extract:** the prompt is built on the server from the handoff. The model's `updates` pass
+  through `clean()` in `app/domain/compass.py`, a port of the frontend's validator. A link in
+  `ack`/`answer` is dropped. Unusable output returns empty fields, so the frontend's parser
+  takes over.
+- **Chat:** the numbers in the standing instruction are **recomputed on the server** with
+  `compute()` (a port of `frontend/src/domain/needs.ts`, tested against the handoff vectors).
+  The browser's `calculation` field is ignored. Errors before the first chunk return
+  429/502/503; after that, the stream just ends.
+- **Provider throttling** returns 429 `rate_limited`.
 
 Every session endpoint requires `Authorization: Bearer <access_token>`. Writes (`messages`,
 `PATCH profile`) require `expected_revision` and a `client_request_id`. Retrying with the
@@ -148,9 +169,9 @@ Each item matches a step in blueprint §13. Its interface is already in place.
   `session_lock` is a no-op there. Two simultaneous retries can both call the model; one gets
   409 and its next retry replays. To close that gap, insert a *pending* idempotency record
   before the model call.
-- **Bedrock** (step 5): implement `AIAdapter` in `ai/bedrock.py` and select it in
-  `container.build_ai_adapter`. Validation of model output already lives in
-  `services/extraction.py`.
+- **Bedrock** (issue #5): implement `generate` and `stream` in `ai/bedrock.py` (plain text
+  in and out; prompts and validation already live in `services/compass_ai.py`), then select it
+  in `container.build_ai_adapter`.
 - **Income-estimation sub-flow:** needs `annual_income` and expense-share fields.
 - **Assumption-flag questions:** the mortgage/education double-count flags can be set by
   PATCH, and the calculator warns about them, but the chat doesn't ask yet.

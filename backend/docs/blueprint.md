@@ -1,5 +1,12 @@
 # Life-insurance needs analyzer: backend blueprint
 
+> **Status: partly superseded.** The product is now defined by the Coverage Compass handoff
+> ([../../docs/coverage-compass/HANDOFF.md](../../docs/coverage-compass/HANDOFF.md)). This
+> blueprint's question flow, profile fields and `needs-v1` calculator describe the earlier
+> Planner design, which the current front end does not use (see issue #11). Its principles
+> still apply: deterministic math, untrusted model output, privacy by default, and no
+> product recommendations. So does its guidance on security and operations.
+
 ## 1. Scope and principles
 
 Build a **planning tool**, not a quote engine, underwriting system, or automated product recommendation. The backend should collect a household's stated goals, estimate a coverage gap using a versioned, deterministic methodology, and explain the inputs and calculation in plain language. Term/permanent comparisons are educational. A qualified professional should review individual insurance decisions; obtain legal/compliance review before production use.

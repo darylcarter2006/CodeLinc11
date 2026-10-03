@@ -71,3 +71,22 @@ class TurnLimitExceeded(AppError):
         "This session has reached its message limit. "
         "You can still edit your answers directly or start a new session."
     )
+
+
+class RateLimited(AppError):
+    code = "rate_limited"
+    status_code = 429
+    default_message = "That's a lot of requests at once. Please try again in a minute."
+
+
+class AIUnavailable(AppError):
+    # The front end treats 503 as "no live AI" and switches to its local fallbacks.
+    code = "ai_unavailable"
+    status_code = 503
+    default_message = "Live answers aren't available right now."
+
+
+class AIFailed(AppError):
+    code = "ai_failed"
+    status_code = 502
+    default_message = "The answer couldn't be completed. Please try again."

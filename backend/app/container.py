@@ -9,7 +9,9 @@ from app.ai.base import AIAdapter
 from app.ai.stub import StubAIAdapter
 from app.repositories.base import SessionRepository
 from app.repositories.memory import InMemorySessionRepository
+from app.security.rate_limit import RateLimiter
 from app.services.assessments import AssessmentService
+from app.services.compass_ai import CompassAIService
 from app.services.conversation import ConversationService
 from app.services.profiles import ProfileService
 from app.services.sessions import Clock, SessionService
@@ -29,6 +31,8 @@ class Container:
     profiles: ProfileService
     conversation: ConversationService
     assessments: AssessmentService
+    compass_ai: CompassAIService
+    ai_limiter: RateLimiter
 
 
 def build_repository(settings: Settings) -> SessionRepository:
@@ -74,4 +78,6 @@ def build_container(
         profiles=ProfileService(repo, settings, clock),
         conversation=ConversationService(repo, ai, settings, clock),
         assessments=AssessmentService(repo, clock),
+        compass_ai=CompassAIService(ai, settings.ai_timeout_seconds),
+        ai_limiter=RateLimiter(settings.ai_rate_limit_per_minute),
     )

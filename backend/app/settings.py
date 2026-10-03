@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     repository_backend: Literal["memory", "postgres"] = "memory"
     ai_provider: Literal["stub"] = "stub"
     ai_timeout_seconds: float = 15.0
+    # Per client IP, across /v1/ai/extract and /v1/ai/chat combined.
+    ai_rate_limit_per_minute: int = Field(default=20, ge=1)
 
     # --- PostgreSQL (required when repository_backend = "postgres") ---
     # Full async DSN: postgresql+asyncpg://user:pass@host:5432/dbname
