@@ -14,13 +14,21 @@ export class HttpError extends Error {
   }
 }
 
+export interface RequestOptions {
+  signal?: AbortSignal
+  /** Sent as "Authorization: Bearer <token>". */
+  token?: string
+}
+
 /** POST JSON and return the raw Response. Network failures become HttpError(0, "network_error"). */
-export async function postJson(path: string, body: unknown, signal?: AbortSignal): Promise<Response> {
+export async function postJson(path: string, body: unknown, { signal, token }: RequestOptions = {}): Promise<Response> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
   let res: Response
   try {
     res = await fetch(`${API_BASE}/v1${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
       signal,
     })

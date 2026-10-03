@@ -71,3 +71,40 @@ class TurnLimitExceeded(AppError):
         "This session has reached its message limit. "
         "You can still edit your answers directly or start a new session."
     )
+
+
+class RateLimited(AppError):
+    code = "rate_limited"
+    status_code = 429
+    default_message = "That's a lot of requests at once. Please try again in a minute."
+
+
+class AIUnavailable(AppError):
+    # The front end treats 503 as "no live AI" and switches to its local fallbacks.
+    code = "ai_unavailable"
+    status_code = 503
+    default_message = "Live answers aren't available right now."
+
+
+class AIFailed(AppError):
+    code = "ai_failed"
+    status_code = 502
+    default_message = "The answer couldn't be completed. Please try again."
+
+
+class AuthNotConfigured(AppError):
+    code = "auth_unavailable"
+    status_code = 503
+    default_message = "Google sign-in isn't set up on this server."
+
+
+class InvalidCredential(AppError):
+    code = "invalid_credential"
+    status_code = 401
+    default_message = "Google sign-in couldn't be verified. Please try again."
+
+
+class AuthProviderUnreachable(AppError):
+    code = "auth_provider_unreachable"
+    status_code = 503
+    default_message = "We couldn't reach Google to verify your sign-in. Please try again."

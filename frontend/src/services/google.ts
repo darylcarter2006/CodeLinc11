@@ -1,8 +1,11 @@
 /*
- * Google Identity Services (GIS): loads Google's sign-in script and reads the ID token it returns.
- * The browser only checks the token's claims. Once real accounts exist, the backend must verify
- * the token's signature before trusting it.
+ * Google Identity Services (GIS): loads Google's sign-in script and handles the ID token it returns.
+ * With the backend running, the token is sent to /v1/auth/google, which verifies its signature and
+ * returns our own account token. Without a backend, the browser reads the token's claims for a
+ * browser-only prototype account (like the email form); that path is never trusted by the server.
  */
+
+import { HttpError, postJson } from './http'
 
 const SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
 const ISSUERS = ['accounts.google.com', 'https://accounts.google.com']
@@ -71,5 +74,55 @@ export function readGoogleCredential(credential: string, clientId: string, now =
     return { email, name }
   } catch {
     return null
+  }
+}
+
+/* Backend sign-in: the server verifies the token's signature and issues an account token. */
+
+export interface SignedInUser {
+  id: string
+  email: string
+  name: string
+  given_name: string | null
+  picture: string | null
+}
+
+export interface SignInResult {
+  access_token: string
+  expires_at: string
+  user: SignedInUser
+}
+
+export type Exchange =
+  | { kind: 'ok'; result: SignInResult }
+  /** No backend sign-in here (not deployed, not configured, or unreachable): use the browser-only path. */
+  | { kind: 'unavailable' }
+  /** The backend looked at the token and said no, or can't sign in right now. Never fall back. */
+  | { kind: 'error'; message: string }
+
+// 404/501: endpoint not deployed. 0: backend unreachable. 503 auth_unavailable: no client ID set.
+const UNAVAILABLE = [0, 404, 501]
+
+/** Exchange Google's credential for our account token. */
+export async function exchangeCredential(credential: string): Promise<Exchange> {
+  try {
+    const res = await postJson('/auth/google', { credential })
+    return { kind: 'ok', result: (await res.json()) as SignInResult }
+  } catch (e) {
+    if (e instanceof HttpError) {
+      if (UNAVAILABLE.includes(e.status) || e.code === 'auth_unavailable') return { kind: 'unavailable' }
+      if (e.status === 503) return { kind: 'error', message: "We couldn't reach Google to check your sign-in. Try again in a moment." }
+      if (e.status === 429) return { kind: 'error', message: 'Too many sign-in attempts. Wait a minute and try again.' }
+    }
+    return { kind: 'error', message: "Google sign-in didn't work. Try again, or use your email instead." }
+  }
+}
+
+/** Revoke the account token on the server. Best effort: sign-out continues locally regardless. */
+export async function revokeToken(token: string): Promise<void> {
+  try {
+    await postJson('/auth/logout', {}, { token })
+  } catch {
+    // Already expired or offline: nothing else to do.
   }
 }

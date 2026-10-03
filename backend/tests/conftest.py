@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app.ai.base import AIAdapter
 from app.container import build_container
 from app.main import create_app
+from app.security.google import GoogleTokenVerifier
 from app.settings import Settings
 
 
@@ -41,9 +42,13 @@ def settings() -> Settings:
 def make_client(settings: Settings, clock: FakeClock) -> Iterator[Callable[..., TestClient]]:
     clients: list[TestClient] = []
 
-    def factory(ai: AIAdapter | None = None, **overrides: Any) -> TestClient:
+    def factory(
+        ai: AIAdapter | None = None,
+        google_verifier: GoogleTokenVerifier | None = None,
+        **overrides: Any,
+    ) -> TestClient:
         effective = settings.model_copy(update=overrides)
-        container = build_container(effective, ai=ai, clock=clock)
+        container = build_container(effective, ai=ai, google_verifier=google_verifier, clock=clock)
         client = TestClient(create_app(effective, container))
         # Entering the client keeps one event loop for all its requests, which pooled
         # database connections require.

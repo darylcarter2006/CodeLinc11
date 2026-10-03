@@ -49,10 +49,16 @@ Services and needs an OAuth client ID:
 
 Without a client ID the button still shows, and explains that Google sign-in isn't set up yet.
 
-The browser reads the Google token for name and email only (checking issuer, audience, expiry and
-verified email) and then discards it. **It does not verify the token's signature**, so this is
-prototype-grade. When real accounts land, send the token to the backend and verify it there
-before trusting it.
+**With the backend running**, the token goes to `POST /v1/auth/google`, which verifies Google's
+signature (plus audience, issuer, expiry and verified email), creates or finds the user, and
+returns an account token. That token is stored in this browser and revoked on sign-out. The backend
+needs the same client ID in `backend/.env` as `GOOGLE_CLIENT_ID`; see
+[../backend/docs/google-oauth-setup.md](../backend/docs/google-oauth-setup.md).
+
+**Without a backend** (404, unreachable, or the backend has no client ID), the browser falls back to
+reading the token's name and email itself (checking issuer, audience, expiry and verified email,
+but **not** the signature). That creates a browser-only account, just like the email form, and is
+never trusted by the server. If the backend actively rejects a token (401), there is no fallback.
 
 ## Deploying to AWS Amplify
 

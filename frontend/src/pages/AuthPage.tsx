@@ -62,8 +62,10 @@ export function AuthPage() {
         <GoogleButton
           mode={mode}
           onCredential={(credential) => {
-            const result = signInWithGoogle(credential)
-            if (!result.ok) setGoogleError(result.error)
+            setGoogleError('')
+            void signInWithGoogle(credential).then((result) => {
+              if (!result.ok) setGoogleError(result.error)
+            })
           }}
           onError={setGoogleError}
         />

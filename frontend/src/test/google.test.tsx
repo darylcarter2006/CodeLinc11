@@ -51,6 +51,8 @@ const renderApp = () =>
 
 describe('Google sign-in', () => {
   it('explains when Google sign-in is not set up', async () => {
+    // Explicit, so a developer's own VITE_GOOGLE_CLIENT_ID in .env.local can't change the result.
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '')
     const user = userEvent.setup()
     renderApp()
     await user.click(await screen.findByRole('button', { name: 'Sign up with Google' }))
