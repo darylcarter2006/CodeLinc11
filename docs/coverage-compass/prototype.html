@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Coverage Compass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Public+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: navy top bar; sign-up -> onboarding chat -> Dashboard / Breakdown / My info / Chat tabs; panes stack on phones */
+:root{
+  --ground:#ffffff;--surface:#ffffff;--sunk:#f2f5f9;--line:#dfe4ec;--ink:#1b2433;--muted:#5a6475;
+  --brand:#1f3a5f;--brand-tint:#e8eef6;--on-brand:#ffffff;--navy:#142640;--on-navy:#ffffff;
+  --orange:#c2541a;--accent:#b04e1a;--accent-tint:#fdf0e6;--accent-soft:#f6a36b;
+  --teal:#1f6f6a;--teal-tint:#e3f1ef;
+  --c1:#e07b34;--c2:#2f5597;--c3:#a83a5e;--c4:#13958b;
+  --display:"Newsreader",Georgia,"Times New Roman",serif;
+  --sans:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r-sm:6px;--r-md:12px;color-scheme:light;
+}
+body{background:var(--ground);color:var(--ink);font:400 16px/1.5 var(--sans)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 16px;padding-block:24px 40px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+.eyebrow{font:600 12px/16px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+/* Header */
+.topbar{background:var(--navy);color:var(--on-navy);border-bottom:4px solid var(--orange)}
+header{display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:16px;max-width:1240px;margin:0 auto;padding:0 16px;padding-block:18px}
+.mark{display:flex;align-items:baseline;gap:4px 12px;flex-wrap:wrap;flex:1 1 260px;min-width:0}
+.mark h1{font-size:30px;font-weight:600;color:var(--on-navy)}
+.tag{font-size:13px;color:var(--accent-soft)}
+.btn{border:0;border-radius:999px;padding:9px 18px;font-weight:600;font-size:14px;background:var(--orange);color:#ffffff}
+.btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand)}
+.btn:disabled{opacity:.5;cursor:default}
+
+/* Panes */
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:24px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:0 1px 2px rgba(20,38,64,.06)}
+.pad{padding:24px}
+@media (max-width:600px){.pad{padding:16px}}
+
+/* Conversation */
+.chat{display:flex;flex-direction:column;position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);max-height:calc(100vh - 40px)}
+@media (max-width:900px){.chat{position:static;max-height:none}}
+.chat-head{background:var(--brand-tint);border-radius:var(--r-md) var(--r-md) 0 0;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.chat-head h2{font-size:20px;color:var(--brand)}
+.banner{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--accent-tint);padding:10px 20px;font-size:14px}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:16px 20px;min-height:200px}
+@media (max-width:900px){.msgs{max-height:60vh}}
+.b{padding:12px;border-radius:var(--r-md);max-width:86%;white-space:pre-wrap;overflow-wrap:anywhere}
+.b.a{background:var(--sunk);align-self:flex-start}
+.b.u{background:var(--brand-tint);align-self:flex-end}
+.why{display:block;margin-top:4px;font-size:14px;line-height:20px;color:var(--muted)}
+.b .src{display:block;margin-top:6px;font-size:12px;color:var(--muted)}
+.dock{border-top:1px solid var(--line);padding:14px 20px;display:flex;flex-direction:column;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:600 14px/20px var(--sans);padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--accent-tint);border-color:var(--orange);color:var(--accent)}
+.chip:hover{border-color:var(--orange)}
+.chip.sm{font-size:13px;padding:5px 12px;font-weight:600;color:var(--brand)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.field .in{display:flex;align-items:center;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);padding:0 10px}
+.field .in:focus-within{outline:2px solid var(--teal);outline-offset:1px}
+.field input{border:0;outline:0;background:transparent;color:var(--ink);font:inherit;padding:8px 4px;width:100%;min-width:0;font-variant-numeric:tabular-nums}
+.field .aff{color:var(--muted);font-size:14px}
+.err{color:var(--accent);font-size:13px;min-height:0}
+.ask{display:flex;gap:8px}
+.ask input{flex:1;min-width:0;border:1px solid var(--line);border-radius:999px;padding:9px 16px;background:var(--surface);color:var(--ink);font:inherit}
+.ask-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* Results */
+.results{display:flex;flex-direction:column;gap:20px;min-width:0}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end}
+@media (max-width:600px){.hero{grid-template-columns:minmax(0,1fr)}}
+.figure{font:500 clamp(40px,7vw,60px)/1 var(--display);color:var(--brand);font-variant-numeric:tabular-nums;margin:6px 0 10px}
+.facts{display:flex;flex-direction:column;gap:6px;font-size:14px;text-align:right}
+@media (max-width:600px){.facts{text-align:left}}
+.facts b{font-variant-numeric:tabular-nums}
+.note{border-radius:var(--r-sm);padding:12px 14px;font-size:14px;line-height:20px}
+.note.teal{background:var(--teal-tint)}
+.note.orange{background:var(--accent-tint)}
+.note strong{color:var(--teal)}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sec-head h2{font-size:22px;color:var(--brand)}
+
+/* Chart: two bars, same scale */
+.chart{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+.row-lbl{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+.track{display:flex;gap:2px;height:22px}
+.seg{border-radius:4px;min-width:3px}
+.seg.c1{background:var(--c1)}.seg.c2{background:var(--c2)}.seg.c3{background:var(--c3)}.seg.c4{background:var(--c4)}
+.seg.have{background:var(--teal)}.seg.left{background:var(--orange)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--ground);font-size:13px;padding:6px 10px;border-radius:var(--r-sm);z-index:10}
+
+/* Math table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 10px;background:var(--sunk)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.amt,th.amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+td .how{font-size:13px;color:var(--muted)}
+tr.total td{font-weight:700;border-bottom:0}
+tr.sub td{color:var(--teal);font-weight:600}
+.why-btn{border:0;background:none;color:var(--accent);font-size:13px;font-weight:600;text-decoration:underline;padding:0;margin-top:2px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px}
+
+/* Tradeoffs */
+.trades{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.trade{border:1px solid var(--line);border-top:3px solid var(--orange);border-radius:var(--r-md);padding:16px;display:flex;flex-direction:column;gap:6px}
+.trade h3{font-size:18px;font-weight:600;color:var(--brand)}
+.trade p{margin:0;font-size:14px;line-height:21px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;font-size:13px}
+.pair div{background:var(--sunk);border-radius:var(--r-sm);padding:8px 10px}
+.pair b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+
+/* Building state */
+.so-far{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}
+.so-far div{background:var(--sunk);border-radius:var(--r-sm);padding:10px 12px;font-size:14px}
+.so-far b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+footer{margin-top:28px;font-size:13px;color:var(--muted);max-width:75ch}
+@media (prefers-reduced-motion:no-preference){.b{animation:rise .25s ease-out}@keyframes rise{from{transform:translateY(4px)}to{transform:none}}}
+
+/* Tabs in the navy bar */
+.tabs{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-left:auto}
+.tab{background:transparent;border:1px solid #4a5f80;border-radius:var(--r-sm);color:#d5dde9;font-weight:600;font-size:14px;padding:8px 16px;white-space:nowrap}
+.tab:hover{border-color:var(--on-navy);color:var(--on-navy)}
+.tab[aria-selected="true"]{background:var(--orange);border-color:var(--orange);color:#ffffff}
+@media (max-width:600px){header{flex-wrap:wrap}.tab{padding:7px 12px;font-size:13px}}
+.view-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px;margin-bottom:20px}
+.view-head h2{font-size:30px;color:var(--brand)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.ex-note{background:var(--accent-tint);border-radius:var(--r-sm);padding:10px 14px;font-size:14px;margin-bottom:20px}
+.linkish{border:0;background:none;padding:0;color:var(--accent);font-weight:600;text-decoration:underline;font-size:14px}
+
+/* Dashboard */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+@media (max-width:900px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{padding:18px 20px;border-top:4px solid var(--line)}
+.tile .k{font-size:13px;color:var(--muted);font-weight:600}
+.tile .v{font:500 clamp(26px,3.4vw,36px)/1.1 var(--display);color:var(--brand);font-variant-numeric:tabular-nums;margin-top:6px}
+.tile .s{font-size:13px;color:var(--muted);margin-top:4px}
+.tile.have{border-top-color:var(--teal)}.tile.left{border-top-color:var(--orange)}.tile.need{border-top-color:var(--brand)}.tile.term{border-top-color:var(--c2)}
+.tile.left .v{color:var(--accent)}
+.dash{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:20px;align-items:start}
+@media (max-width:900px){.dash{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+.meter{height:26px;display:flex;gap:2px;margin:6px 0 8px}
+.meter .seg{height:100%}
+.src-list{display:flex;flex-direction:column;margin-top:8px}
+.src{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.src:last-child{border-bottom:0}
+.src .nm{font-weight:600}
+.src .amt{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.src .dt{grid-column:1/-1;font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--sunk);color:var(--brand)}
+.pill.warn{background:var(--accent-tint);color:var(--accent)}
+.pill.ok{background:var(--teal-tint);color:var(--teal)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.steps label{display:flex;gap:10px;align-items:flex-start;font-size:15px;cursor:pointer}
+.steps input{width:18px;height:18px;margin-top:3px;accent-color:var(--orange);flex:none}
+.steps input:checked + span{color:var(--muted);text-decoration:line-through}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px;font-size:14px;margin:0}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+
+/* Chat tab */
+.chat-layout{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:20px;align-items:start}
+@media (max-width:900px){.chat-layout{grid-template-columns:minmax(0,1fr)}}
+.chat-full{display:flex;flex-direction:column;height:min(720px,calc(100vh - 200px));min-height:460px}
+@media (max-width:900px){.chat-full{height:auto}.chat-full .msgs{max-height:60vh}}
+.ctx h3{font-size:18px;color:var(--brand);margin-bottom:10px}
+.ctx .kv{margin-bottom:14px}
+
+/* Account button in the header */
+.hdr-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
+.acct{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid #4a5f80;border-radius:var(--r-sm);color:#d5dde9;font-size:14px;font-weight:600;padding:5px 12px 5px 5px}
+.acct:hover{border-color:var(--on-navy);color:var(--on-navy)}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--navy);display:grid;place-items:center;font-weight:700;font-size:13px}
+
+/* Sign up / log in */
+.auth{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:40px;align-items:center;max-width:1040px;margin:24px auto}
+@media (max-width:860px){.auth{grid-template-columns:minmax(0,1fr);gap:24px;margin-top:8px}}
+.pitch h2{font-size:clamp(32px,4.4vw,46px);line-height:1.05;color:var(--brand)}
+.pitch p{font-size:17px;color:var(--muted);max-width:46ch}
+.pitch ol{margin:18px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px;counter-reset:s}
+.pitch li{display:flex;gap:12px;align-items:baseline;counter-increment:s}
+.pitch li::before{content:counter(s);font:600 22px/1 var(--display);color:var(--accent);width:18px;flex:none}
+.auth-card{padding:28px}
+.seg-ctl{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:var(--r-sm);padding:3px;margin-bottom:20px;background:var(--sunk)}
+.seg-ctl button{border:0;background:transparent;border-radius:4px;padding:8px;font-weight:600;color:var(--muted)}
+.seg-ctl button[aria-pressed="true"]{background:var(--surface);color:var(--brand);box-shadow:0 1px 2px rgba(20,38,64,.12)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.stack .field input{padding:10px 4px}
+.full{width:100%;padding:11px 18px;font-size:15px}
+.fine{font-size:13px;color:var(--muted);margin:0}
+
+/* Onboarding conversation */
+.onb{display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:20px;align-items:start}
+@media (max-width:900px){.onb{grid-template-columns:minmax(0,1fr)}}
+.progress{height:6px;background:var(--sunk);border-radius:999px;overflow:hidden;margin-top:10px}
+.progress span{display:block;height:100%;background:var(--orange);border-radius:999px;transition:width .3s}
+.saved{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.saved li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.saved li:last-child{border-bottom:0}
+.saved li span:last-child{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.saved li.todo span:last-child{color:var(--muted);font-weight:400}
+.summary{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:14px;align-self:stretch}
+
+/* My info form */
+.info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+@media (max-width:760px){.info-grid{grid-template-columns:minmax(0,1fr)}}
+.info-grid h3{font-size:19px;color:var(--brand);margin-bottom:12px}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.checks label{white-space:nowrap;margin:0;display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer}
+.checks input{accent-color:var(--orange)}
+.checks label:has(input:checked){background:var(--accent-tint);border-color:var(--orange);color:var(--accent)}
+select{font:inherit;color:var(--ink);background:var(--surface);border:0;outline:0;padding:8px 4px;width:100%}
+.save-bar{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 16px;margin-top:20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;box-shadow:0 -2px 8px rgba(20,38,64,.06);padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+.log{list-style:none;margin:0;padding:0;font-size:14px}
+.log li{padding:8px 0;border-bottom:1px solid var(--line)}
+.log time{color:var(--muted);font-size:13px;margin-right:8px}
+</style>
+
+<div class="topbar">
+  <header>
+    <div class="mark"><h1>Coverage Compass</h1><span class="tag">Life insurance needs analyzer · codeLinc 11, Path 2 concept</span></div>
+    <div class="hdr-right">
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Sections" hidden>
+        <button class="tab" role="tab" id="tab-dashboard" data-tab="dashboard" type="button">Dashboard</button>
+        <button class="tab" role="tab" id="tab-breakdown" data-tab="breakdown" type="button">Breakdown</button>
+        <button class="tab" role="tab" id="tab-info" data-tab="info" type="button">My info</button>
+        <button class="tab" role="tab" id="tab-chat" data-tab="chat" type="button">Chat</button>
+      </nav>
+      <button class="acct" id="acctBtn" type="button" hidden><span class="avatar" id="avatar"></span><span id="acctLbl">Sign out</span></button>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+  <!-- Sign up / log in -->
+  <section id="view-auth" hidden>
+    <div class="auth">
+      <div class="pitch">
+        <div class="eyebrow">Life insurance, right-sized</div>
+        <h2 style="margin-top:8px">Find the coverage that fits your life, in a short conversation.</h2>
+        <p>No forms to wrestle with. Tell us about your situation in your own words, and we'll show you a clear starting point with every number explained.</p>
+        <ol>
+          <li>Create an account</li>
+          <li>Chat for about three minutes</li>
+          <li>See your dashboard, and update it as life changes</li>
+        </ol>
+      </div>
+      <div class="card auth-card">
+        <div class="seg-ctl" role="group" aria-label="Sign up or log in">
+          <button type="button" id="modeSignup" aria-pressed="true">Sign up</button>
+          <button type="button" id="modeLogin" aria-pressed="false">Log in</button>
+        </div>
+        <form class="stack" id="authForm" novalidate>
+          <div class="field" id="nameField"><label for="authName">First name</label><div class="in"><input id="authName" autocomplete="given-name" placeholder="Jordan"></div></div>
+          <div class="field"><label for="authEmail">Email</label><div class="in"><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"></div></div>
+          <div class="field"><label for="authPass">Password</label><div class="in"><input id="authPass" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div></div>
+          <div class="err" id="authErr" role="alert"></div>
+          <button class="btn full" id="authSubmit" type="submit">Create account</button>
+          <p class="fine">Prototype sign-in: your details stay in this browser and passwords are never stored or sent anywhere.</p>
+        </form>
+        <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px;text-align:center"><button class="linkish" id="tryExample" type="button">Explore with example data instead</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Onboarding conversation -->
+  <section id="view-onboard" hidden>
+    <div class="view-head"><div><div class="eyebrow" id="onbEyebrow">Getting to know you</div><h2 id="onbTitle">Let's talk about your situation</h2></div></div>
+    <div class="onb">
+      <section class="card chat-full" aria-label="Onboarding conversation">
+        <div class="chat-head"><h2>Coverage assistant</h2><span class="eyebrow" id="onbCount"></span></div>
+        <div class="msgs" id="onbMsgs" aria-live="polite"></div>
+        <div class="dock">
+          <form class="ask" id="onbForm"><input id="onbIn" type="text" placeholder="Type your answer in your own words" autocomplete="off" aria-label="Your answer"><button class="btn" id="onbBtn" type="submit">Send</button></form>
+          <div class="chips" id="onbChips"></div>
+        </div>
+      </section>
+      <aside class="card pad">
+        <h3 style="font-size:19px;color:var(--brand)">Saved so far</h3>
+        <div class="progress" aria-hidden="true"><span id="onbBar" style="width:0%"></span></div>
+        <ul class="saved" id="onbSaved" style="margin-top:12px"></ul>
+        <p class="fine" style="margin-top:12px">You can change any of this later in My info.</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- App views -->
+  <section id="view-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" hidden></section>
+  <section id="view-breakdown" role="tabpanel" aria-labelledby="tab-breakdown" hidden>
+    <div class="view-head"><div><div class="eyebrow" id="bdEyebrow">Breakdown</div><h2>How we got your number</h2></div><button class="btn ghost" type="button" data-go="info">Edit my info</button></div>
+    <div class="results" id="results"></div>
+  </section>
+  <section id="view-info" role="tabpanel" aria-labelledby="tab-info" hidden></section>
+  <section id="view-chat" role="tabpanel" aria-labelledby="tab-chat" hidden>
+    <div class="view-head"><div><div class="eyebrow">Chat</div><h2>Ask about your coverage</h2></div></div>
+    <div class="chat-layout">
+      <aside class="card pad ctx" id="chatCtx" aria-label="What the assistant knows"></aside>
+      <section class="card chat-full" aria-label="Chat">
+        <div class="chat-head"><h2>Coverage assistant</h2><button class="linkish" id="clearChat" type="button">New chat</button></div>
+        <div class="msgs" id="chatMsgs" aria-live="polite"></div>
+        <div class="dock">
+          <form class="ask" id="askForm"><input id="askIn" type="text" placeholder="Ask anything about your coverage" autocomplete="off" aria-label="Ask a question"><button class="btn" id="askBtn" type="submit">Ask</button></form>
+          <div class="chips" id="suggest"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <footer>Coverage Compass is an educational concept built for the codeLinc 11 coding challenge. Estimates use simple, stated assumptions and are not financial advice or a quote. A licensed professional can help confirm what fits you.</footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+/* ---------- Money + assumptions ---------- */
+const fmt = n => "$" + Math.round(n).toLocaleString("en-US");
+const short = n => n >= 1e6 ? "$" + (n/1e6).toFixed(2).replace(/\.?0+$/,"") + "M" : n >= 1e3 ? "$" + Math.round(n/1e3) + "K" : fmt(n);
+const A = { replace: 0.75, final: 15000, college: { public: 100000, half: 50000, none: 0 } };
+const has = (p, d) => p.deps.includes(d);
+
+/* ---------- Needs calculation (deterministic; the AI only explains it) ---------- */
+function compute(p) {
+  const kids = has(p, "kids") ? p.children : 0;
+  const years = has(p, "none") ? 0 : p.years;
+  const lines = [
+    { key: "c1", label: "Income replacement", amt: p.income * A.replace * years,
+      how: years ? `75% of ${fmt(p.income)} × ${years} years` : "No one relies on your income, so none is needed" },
+    { key: "c2", label: "Debts to clear", amt: p.mortgage + p.otherDebt,
+      how: `${fmt(p.mortgage)} mortgage + ${fmt(p.otherDebt)} other debts` },
+    { key: "c3", label: "College", amt: kids * A.college[p.college || "none"],
+      how: kids ? `${kids} ${kids > 1 ? "children" : "child"} × ${fmt(A.college[p.college || "none"])}` : "No children included" },
+    { key: "c4", label: "Final expenses", amt: A.final, how: "Typical funeral and settling costs" },
+  ];
+  const total = lines.reduce((s, l) => s + l.amt, 0);
+  const existing = p.group + p.policies + p.savings;
+  const gap = Math.max(0, total - existing);
+  const r = v => Math.ceil(v / 25000) * 25000;
+  const termNeed = Math.max(years, p.mortgage > 0 ? p.mortgageYears : 0);
+  const term = [10, 15, 20, 25, 30].find(t => t >= termNeed) || 30;
+  return { lines, total, existing, gap, suggested: r(gap), low: Math.floor(gap * .85 / 25000) * 25000, high: r(gap * 1.15), years, kids, term, termNeed };
+}
+
+/* ---------- Personalized tradeoffs (rules over the user's own numbers) ---------- */
+function tradeoffs(p, c) {
+  const t = [];
+  const temp = c.total ? Math.round((c.lines[0].amt + c.lines[1].amt) / c.total * 100) : 0;
+  t.push({ tag: "Term or whole", title: "Term vs. whole life for you",
+    body: `About ${temp}% of your need is income and debt that shrink over time. Term life covers a set number of years and buys the most coverage per dollar, which fits that shape. Whole life lasts your entire life and builds cash value, but often costs many times more for the same amount.`
+      + (has(p, "relative") ? " Because a parent or relative relies on you, a small permanent policy alongside term may be worth a look." : " Some people pair a large term policy with a small permanent one for final expenses."),
+    pair: [["Term", `${short(c.suggested)} for ${c.term} years. Lower cost, ends on schedule.`], ["Whole", "Lifelong, builds cash value. Much higher cost for the same amount."]] });
+  if (c.years > 0 && c.term > 10) {
+    const shorter = [10, 15, 20, 25].filter(x => x < c.term).pop();
+    const why = c.kids ? `your youngest is ${p.youngest + c.term}` : `${c.term} years from now`;
+    t.push({ tag: "Term length", title: `${c.term} years or ${shorter}?`,
+      body: `A ${c.term}-year term runs until ${why}${p.mortgageYears >= c.years && p.mortgage ? " and outlasts your mortgage" : ""}. A ${shorter}-year term costs less, but ends ${c.term - shorter} years sooner${c.kids ? `, when your youngest is ${p.youngest + shorter}` : ""}.` });
+  }
+  if (p.mortgage > 0 && c.years > 0 && Math.abs(p.mortgageYears - c.years) >= 5) {
+    const inc = Math.ceil((c.lines[0].amt + c.lines[2].amt) / 25000) * 25000, mort = Math.ceil(p.mortgage / 25000) * 25000;
+    const [a, b] = p.mortgageYears > c.years ? [[inc, c.years], [mort, p.mortgageYears]] : [[mort, p.mortgageYears], [inc, c.years]];
+    t.push({ tag: "Laddering", title: "One policy or two?",
+      body: `Your income need and your mortgage end at different times (${c.years} vs. ${p.mortgageYears} years). Two policies, such as ${short(a[0])} for ${a[1]} years and ${short(b[0])} for ${b[1]} years, let coverage step down as needs shrink, which can lower total cost.` });
+  }
+  if (p.group > 0) {
+    const without = compute({ ...p, group: 0 });
+    t.push({ tag: "Work coverage", title: "Counting coverage from work",
+      body: `${fmt(p.group)} of your existing coverage comes through your employer. It usually ends if you change jobs. Leaving it out would raise the starting point to ${fmt(without.suggested)}.` });
+  }
+  if (p.savings > 0) t.push({ tag: "Savings", title: "Counting your savings",
+    body: `Counting ${fmt(p.savings)} of savings lowers the coverage you need. The tradeoff: that money then can't also serve as your emergency fund or retirement savings.` });
+  if (c.kids && p.college === "public") {
+    const half = compute({ ...p, college: "half" });
+    t.push({ tag: "College", title: "Fully funding college",
+      body: `Covering public in-state college adds ${fmt(c.lines[2].amt)}. Planning for about half would bring the starting point to ${fmt(half.suggested)}, with the rest from savings, aid or work.` });
+  }
+  if (has(p, "none")) t.push({ tag: "Fewer dependents", title: "A smaller policy may be enough",
+    body: "With no one relying on your income, coverage mainly clears debts and final costs so they don't pass to family. You can revisit this if your situation changes." });
+  return t;
+}
+
+const EXAMPLE = { deps: ["partner", "kids"], children: 2, youngest: 3, age: 34, income: 78000, years: 19, mortgage: 240000, mortgageYears: 26, otherDebt: 18000, college: "public", group: 156000, policies: 0, savings: 20000 };
+const BLANK = () => ({ deps: [], children: 0, youngest: 0, age: 0, income: 0, years: 0, mortgage: 0, mortgageYears: 0, otherDebt: 0, college: "none", group: 0, policies: 0, savings: 0 });
+
+/* ---------- Breakdown views (headline, math, tradeoffs) ---------- */
+function heroView(c) {
+  if (c.gap === 0) return `<div class="card pad"><div class="eyebrow">Good news</div><h2 style="font-size:28px;margin-top:6px">What you have already covers this estimate</h2>
+    <p class="muted">Your existing coverage and savings (${fmt(c.existing)}) meet the estimated need of ${fmt(c.total)}. Revisit this after big life changes.</p></div>`;
+  const pct = Math.round(c.existing / c.total * 100);
+  return `<div class="card pad">
+    <div class="hero"><div><div class="eyebrow">${isEx() ? "Example result · " : ""}A reasonable starting point</div>
+      <div class="figure">${fmt(c.suggested)}</div>
+      <div class="muted" style="font-size:14px">Comfortable range <b class="num" style="color:var(--ink)">${fmt(c.low)} – ${fmt(c.high)}</b></div></div>
+      <div class="facts"><span>Suggested term <b>${c.term} years</b></span><span>Total need <b>${fmt(c.total)}</b></span><span>Already in place <b>${fmt(c.existing)}</b></span></div></div>
+    <div class="note teal" style="margin-top:16px"><strong>You're not starting from zero.</strong> What you already have covers about ${pct}% of the need. This estimate is a starting point you can adjust, not a verdict.</div>
+  </div>`;
+}
+
+function mathView(c) {
+  const segs = c.lines.filter(l => l.amt > 0);
+  const scale = v => (v / c.total * 100).toFixed(3) + "%";
+  const bar1 = segs.map(l => `<span class="seg ${l.key}" style="width:${scale(l.amt)}" data-tip="${l.label}: ${fmt(l.amt)}"></span>`).join("");
+  const have = Math.min(c.existing, c.total);
+  const bar2 = (have ? `<span class="seg have" style="width:${scale(have)}" data-tip="Already in place: ${fmt(c.existing)}"></span>` : "") +
+    (c.gap ? `<span class="seg left" style="width:${scale(c.gap)}" data-tip="Left to cover: ${fmt(c.gap)}"></span>` : "");
+  const rows = c.lines.map(l => `<tr><td><span class="sw" style="background:var(--${l.key})"></span>${l.label}<div class="how">${esc(l.how)}</div>
+      <button class="why-btn" type="button" data-why="${l.label}">Why?</button></td><td class="amt">${fmt(l.amt)}</td></tr>`).join("");
+  return `<div class="card pad"><div class="sec-head"><h2>How we got here</h2><span class="muted" style="font-size:13px">Needs-based method</span></div>
+    <div class="chart" role="img" aria-label="Total need ${fmt(c.total)}; already in place ${fmt(c.existing)}; left to cover ${fmt(c.gap)}">
+      <div><div class="row-lbl"><span>What the need is made of</span><span class="num">${fmt(c.total)}</span></div><div class="track">${bar1}</div>
+        <div class="legend">${segs.map(l => `<span><i style="background:var(--${l.key})"></i>${l.label} <b class="num">${short(l.amt)}</b></span>`).join("")}</div></div>
+      <div><div class="row-lbl"><span>How it's covered</span><span class="num">${fmt(c.total)}</span></div><div class="track">${bar2}</div>
+        <div class="legend"><span><i style="background:var(--teal)"></i>Already in place <b class="num">${short(c.existing)}</b></span><span><i style="background:var(--orange)"></i>Left to cover <b class="num">${short(c.gap)}</b></span></div></div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Item and how we figured it</th><th class="amt">Amount</th></tr></thead><tbody>
+      ${rows}
+      <tr class="total"><td>Total need</td><td class="amt">${fmt(c.total)}</td></tr>
+      <tr class="sub"><td>Minus what's already in place<div class="how">${fmt(R().group)} work + ${fmt(R().policies)} personal + ${fmt(R().savings)} savings</div></td><td class="amt">− ${fmt(c.existing)}</td></tr>
+      <tr class="total"><td>Left to cover<div class="how" style="font-weight:400">Rounded up to the nearest $25,000: ${fmt(c.suggested)}</div></td><td class="amt" style="color:var(--accent)">${fmt(c.gap)}</td></tr>
+    </tbody></table></div>
+    <div class="note orange" style="margin-top:16px"><b>Assumptions.</b> We replace 75% of income because some of it currently goes to your own costs and taxes. College is about $100,000 per child for a public in-state school. Final expenses are $15,000. Figures are in today's dollars and don't include inflation or investment growth.</div>
+  </div>`;
+}
+
+function tradeView(t) {
+  return `<div class="card pad"><div class="sec-head"><h2>Tradeoffs for your situation</h2><span class="muted" style="font-size:13px">Based on your answers</span></div>
+    <div class="trades">${t.map(x => `<article class="trade"><span class="eyebrow">${x.tag}</span><h3>${esc(x.title)}</h3><p>${esc(x.body)}</p>
+      ${x.pair ? `<div class="pair">${x.pair.map(([h, b]) => `<div><b>${h}</b>${esc(b)}</div>`).join("")}</div>` : ""}</article>`).join("")}</div></div>`;
+}
+
+
+function bindChart() {
+  const tip = $("tip");
+  document.querySelectorAll(".seg").forEach(s => {
+    s.onmousemove = e => { tip.hidden = false; tip.textContent = s.dataset.tip; tip.style.left = (e.clientX + 12) + "px"; tip.style.top = (e.clientY - 34) + "px"; };
+    s.onmouseleave = () => tip.hidden = true;
+  });
+  document.querySelectorAll("[data-why]").forEach(b => b.onclick = () => goChat(`Why is “${b.dataset.why}” in my estimate, and how was it calculated?`));
+}
+
+/* ---------- Storage (this browser only; wrapped because it can be unavailable) ---------- */
+const store = {
+  get: k => { try { return JSON.parse(localStorage.getItem("cc-" + k)); } catch { return null; } },
+  set: (k, v) => { try { v == null ? localStorage.removeItem("cc-" + k) : localStorage.setItem("cc-" + k, JSON.stringify(v)); } catch {} },
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+/* ---------- State: account, saved profile (with which fields are known), change log ---------- */
+const S = {
+  acct: store.get("account"), session: !!store.get("session"), demo: false, demoP: null,
+  prof: store.get("profile") || { p: BLANK(), known: [], confirmed: false, updated: null },
+  log: store.get("log") || [], ai: [], tab: "dashboard",
+};
+const R = () => S.demo ? S.demoP : S.prof.p;
+const isEx = () => S.demo;
+const save = () => { if (S.demo) return; S.prof.updated = Date.now(); store.set("profile", S.prof); store.set("log", S.log); };
+const logChange = text => { if (!S.demo) S.log.unshift({ at: Date.now(), text }); };
+
+/* ---------- Field catalog: labels, display, and the order the conversation asks in ---------- */
+const MONEY = ["income", "mortgage", "otherDebt", "group", "policies", "savings"];
+const INTS = ["children", "youngest", "age", "years", "mortgageYears"];
+const LABEL = { deps: "Who relies on you", children: "Children", youngest: "Youngest's age", age: "Your age", income: "Yearly income", years: "Years of support",
+  mortgage: "Mortgage balance", mortgageYears: "Years left on mortgage", otherDebt: "Other debts", college: "College", group: "Coverage through work", policies: "Policies you own", savings: "Savings to count" };
+const COLLEGE = { public: "Public in-state", half: "About half", none: "Not part of the plan" };
+const depsText = p => has(p, "none") ? "No one right now" : p.deps.map(d => ({ partner: "Partner", kids: "Children", relative: "A parent or relative" })[d]).join(", ") || "—";
+const showVal = (k, p) => k === "deps" ? depsText(p) : MONEY.includes(k) ? fmt(p[k]) : k === "college" ? COLLEGE[p[k]] : ["years", "mortgageYears"].includes(k) ? `${p[k]} yrs` : String(p[k]);
+const kids = p => has(p, "kids"), anyone = p => p.deps.length && !has(p, "none");
+
+const FLOW = [
+  { k: "deps", q: () => "First, who depends on your income? For example a partner, kids, or a parent.", chips: () => ["My partner", "Partner and kids", "Just my kids", "A parent", "No one"] },
+  { k: "children", need: kids, q: () => "How many children do you have?", chips: () => ["1", "2", "3"] },
+  { k: "youngest", need: kids, q: () => "How old is your youngest?" },
+  { k: "age", q: () => "How old are you?" },
+  { k: "income", q: () => "What's your yearly income before taxes? A rough number is fine.", chips: () => ["$50k", "$75k", "$100k"] },
+  { k: "years", need: anyone, q: p => kids(p) ? `How many years should your income keep supporting them? Many families choose until the youngest is 22, which is ${Math.max(5, 22 - p.youngest)} years.` : "For how many years should your income keep supporting them?",
+    chips: p => [kids(p) ? "Until my youngest is 22" : null, "10 years", "15 years", "20 years"].filter(Boolean) },
+  { k: "mortgage", q: () => "Do you have a mortgage? If so, about how much is left on it?", chips: () => ["No mortgage"] },
+  { k: "mortgageYears", need: p => p.mortgage > 0, q: () => "About how many years are left on it?" },
+  { k: "otherDebt", q: () => "Any other debts, like car loans, student loans or cards? A total is fine.", chips: () => ["None"] },
+  { k: "college", need: kids, q: () => "Should coverage help pay for college? Fully, about half, or not part of the plan?", chips: () => ["Yes, public in-state", "About half", "Not part of the plan"] },
+  { k: "group", q: () => "Do you have life insurance through work? If so, how much? It's often 1 or 2 times salary.", chips: () => ["None", "1x salary", "2x salary"] },
+  { k: "policies", q: () => "Any life insurance policies you own yourself? If so, the total amount.", chips: () => ["None"] },
+  { k: "savings", q: () => "Last one: how much savings would you want counted toward your family's needs?", chips: () => ["None", "$10k", "$25k"] },
+];
+const needed = prof => FLOW.filter(f => !f.need || f.need(prof.p));
+const nextField = prof => needed(prof).find(f => !prof.known.includes(f.k));
+
+/* ---------- Local answer parser (used alone when live AI is unavailable, and as a backstop) ---------- */
+const WORDS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+function money(t) {
+  const m = t.match(/\$?\s*(\d[\d,]*(?:\.\d+)?)\s*(k|m|mil|million|thousand)?\b/);
+  if (!m) return /\b(none|no|nothing|zero|nope|don'?t|n\/a)\b/.test(t) ? 0 : undefined;
+  const mult = { k: 1e3, thousand: 1e3, m: 1e6, mil: 1e6, million: 1e6 }[m[2]] || 1;
+  return Math.round(parseFloat(m[1].replace(/,/g, "")) * mult);
+}
+function int(t) {
+  const m = t.match(/\d+/); if (m) return +m[0];
+  const w = Object.keys(WORDS).find(w => new RegExp("\\b" + w + "\\b").test(t));
+  return w !== undefined ? WORDS[w] : /\b(none|no)\b/.test(t) ? 0 : undefined;
+}
+function parseLocal(k, text, p) {
+  const t = text.toLowerCase();
+  if (k === "deps") {
+    const d = [];
+    if (/partner|spouse|wife|husband|fianc/.test(t)) d.push("partner");
+    if (/kid|child|son|daughter|baby/.test(t)) d.push("kids");
+    if (/parent|mom|dad|mother|father|relative|grand|sibling/.test(t)) d.push("relative");
+    if (!d.length && /no one|nobody|none|just me|single|myself|^no\b/.test(t)) d.push("none");
+    return d.length ? d : undefined;
+  }
+  if (k === "years") { const u = t.match(/until.*?(\d+)/); if (u) return Math.max(1, +u[1] - (p.youngest || 0)); if (/until/.test(t) && kids(p)) return Math.max(5, 22 - p.youngest); return int(t); }
+  if (k === "college") return /half|partial|some/.test(t) ? "half" : /\b(no|not|none|skip)\b/.test(t) ? "none" : /yes|public|full|all|sure|yeah/.test(t) ? "public" : undefined;
+  if (k === "group") { const x = t.match(/(\d+(?:\.\d+)?)\s*(x|×|times)/); if (x) return Math.round(+x[1] * p.income); }
+  if (k === "mortgage" && /rent|no mortgage|paid off/.test(t)) return 0;
+  return MONEY.includes(k) ? money(t) : int(t);
+}
+
+/* Keep only well-formed values from the AI or the parser */
+function clean(u) {
+  const out = {};
+  for (const [k, v] of Object.entries(u || {})) {
+    if (k === "deps" && Array.isArray(v)) { const d = v.filter(x => ["partner", "kids", "relative", "none"].includes(x)); if (d.length) out.deps = d.includes("none") ? ["none"] : d; }
+    else if (k === "college" && COLLEGE[v]) out.college = v;
+    else if ((MONEY.includes(k) || INTS.includes(k)) && isFinite(+v) && +v >= 0) out[k] = INTS.includes(k) ? Math.min(120, Math.round(+v)) : Math.round(+v);
+  }
+  return out;
+}
+function applyUpdates(u, prof) {
+  const p = prof.p;
+  for (const [k, v] of Object.entries(u)) { p[k] = v; if (!prof.known.includes(k)) prof.known.push(k); }
+  if ("deps" in u && has(p, "none")) { p.years = 0; }
+  if ("mortgage" in u && p.mortgage === 0) { p.mortgageYears = 0; if (!prof.known.includes("mortgageYears")) prof.known.push("mortgageYears"); }
+  if ("deps" in u && !kids(p)) { p.children = 0; p.youngest = 0; p.college = "none"; }
+}
+
+/* ---------- Chat bubbles ---------- */
+function addMsg(box, role, html) {
+  const d = document.createElement("div");
+  d.className = "b " + (role === "u" ? "u" : "a"); d.innerHTML = html;
+  $(box).append(d); $(box).scrollTop = $(box).scrollHeight; return d;
+}
+
+/* ---------- Live AI (sample capability) ---------- */
+let samplePromise = window.claude?.use ? window.claude.use("sample") : Promise.resolve(null);
+const OFF = ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"];
+
+/* ---------- Onboarding conversation: extract, save, ask the next missing thing ---------- */
+function startOnboarding() {
+  $("onbMsgs").innerHTML = "";
+  const resume = S.prof.known.length > 0;
+  addMsg("onbMsgs", "a", esc(resume ? `Welcome back, ${S.acct.name}. Let's pick up where we left off.`
+    : `Hi ${S.acct.name}! I'll ask a few quick questions to size your coverage. Answer however feels natural, and I'll save as we go.`));
+  askNext();
+}
+function askNext() {
+  const f = nextField(S.prof);
+  renderSaved();
+  if (!f) return finish();
+  addMsg("onbMsgs", "a", esc(f.q(S.prof.p)));
+  setChips(f.chips ? f.chips(S.prof.p) : []);
+}
+function setChips(list) {
+  $("onbChips").innerHTML = "";
+  list.forEach(t => { const b = Object.assign(document.createElement("button"), { type: "button", className: "chip sm", textContent: t }); b.onclick = () => onbSend(t); $("onbChips").append(b); });
+}
+function renderSaved() {
+  const n = needed(S.prof), done = n.filter(f => S.prof.known.includes(f.k));
+  $("onbCount").textContent = `${done.length} of ${n.length} saved`;
+  $("onbBar").style.width = (done.length / n.length * 100) + "%";
+  $("onbSaved").innerHTML = n.map(f => S.prof.known.includes(f.k)
+    ? `<li><span>${LABEL[f.k]}</span><span>${esc(showVal(f.k, S.prof.p))}</span></li>`
+    : `<li class="todo"><span>${LABEL[f.k]}</span><span>Not yet</span></li>`).join("");
+}
+
+let onbBusy = false;
+async function onbSend(text) {
+  text = text.trim(); if (!text || onbBusy) return;
+  onbBusy = true; $("onbBtn").disabled = true; setChips([]);
+  addMsg("onbMsgs", "u", esc(text));
+  const f = nextField(S.prof), p = S.prof.p;
+  const bubble = addMsg("onbMsgs", "a", "…");
+  let u = {}, ack = "", answer = "";
+  const sample = await samplePromise;
+  if (sample) {
+    try {
+      const r = await sample.json(`You help fill in a life insurance needs profile from a casual chat.
+Extract every field the person states or corrects in their latest message. Fields: deps (array of "partner","kids","relative", or ["none"]), children (count), youngest (age in years), age, income (yearly USD), years (years of income support), mortgage (USD balance left), mortgageYears, otherDebt (USD total), college ("public","half","none"), group (USD life insurance through work; a multiple of salary means multiply by income ${p.income || "unknown"}), policies (USD of policies they own), savings (USD to count). "None" or "no" for a dollar field means 0.
+We just asked about "${f.k}": "${f.q(p)}"
+Current profile: ${JSON.stringify(p)}
+Latest message: """${text.slice(0, 500)}"""
+Reply with only JSON: {"updates": {only fields clearly stated}, "ack": "a warm acknowledgement of at most 8 words", "answer": "if they asked a question, a calm plain answer under 45 words; otherwise an empty string"}`, { modelTier: "quick", cache: false });
+      u = clean(r?.updates); ack = String(r?.ack || "").slice(0, 120); answer = String(r?.answer || "").slice(0, 400);
+    } catch (e) { if (OFF.includes(e.code)) samplePromise = Promise.resolve(null); }
+  }
+  if (!(f.k in u)) { const v = clean({ [f.k]: parseLocal(f.k, text, p) }); Object.assign(u, v); }
+  if (Object.keys(u).length) {
+    applyUpdates(u, S.prof); save();
+    bubble.textContent = [ack || "Got it, saved.", answer].filter(Boolean).join(" ");
+    askNext();
+  } else {
+    bubble.textContent = [answer, "I didn't quite catch that. Could you put it another way? A rough number is fine."].filter(Boolean).join("\n\n");
+    setChips(f.chips ? f.chips(p) : []);
+  }
+  onbBusy = false; $("onbBtn").disabled = false; $("onbIn").focus({ preventScroll: true });
+}
+function finish() {
+  const n = needed(S.prof);
+  addMsg("onbMsgs", "a", `That's everything I need. Here's what I saved:<div class="summary" style="margin-top:10px"><ul class="saved">${n.map(f => `<li><span>${LABEL[f.k]}</span><span>${esc(showVal(f.k, S.prof.p))}</span></li>`).join("")}</ul></div><span class="why">If anything is off, you can fix it now or any time in My info.</span>`);
+  $("onbChips").innerHTML = "";
+  const ok = Object.assign(document.createElement("button"), { type: "button", className: "btn", textContent: "Looks right, show my dashboard" });
+  const edit = Object.assign(document.createElement("button"), { type: "button", className: "btn ghost", textContent: "Change something" });
+  const go = tab => { if (!S.prof.confirmed) logChange("Created your profile in the onboarding chat"); S.prof.confirmed = true; save(); S.tab = tab; route(); };
+  ok.onclick = () => go("dashboard"); edit.onclick = () => go("info");
+  $("onbChips").append(ok, edit);
+}
+
+/* ---------- Sign up / log in (prototype: passwords are checked for length only, never stored) ---------- */
+let mode = "signup";
+function setMode(m) {
+  mode = m; $("modeSignup").setAttribute("aria-pressed", m === "signup"); $("modeLogin").setAttribute("aria-pressed", m === "login");
+  $("nameField").hidden = m === "login"; $("authSubmit").textContent = m === "signup" ? "Create account" : "Log in";
+  $("authPass").autocomplete = m === "signup" ? "new-password" : "current-password"; $("authErr").textContent = "";
+}
+$("modeSignup").onclick = () => setMode("signup");
+$("modeLogin").onclick = () => setMode("login");
+$("authForm").onsubmit = e => {
+  e.preventDefault();
+  const name = $("authName").value.trim(), email = $("authEmail").value.trim().toLowerCase(), pass = $("authPass").value;
+  const err = m => { $("authErr").textContent = m; };
+  if (mode === "signup" && !name) return err("Enter your first name.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err("Enter a valid email address, like you@example.com.");
+  if (mode === "signup" && pass.length < 8) return err("Use at least 8 characters for your password.");
+  if (mode === "login" && !pass) return err("Enter your password.");
+  if (mode === "signup") {
+    if (S.acct && S.acct.email === email) return err("An account with this email already exists in this browser. Log in instead.");
+    S.acct = { name, email }; S.prof = { p: BLANK(), known: [], confirmed: false, updated: null }; S.log = [];
+    store.set("account", S.acct); store.set("profile", S.prof); store.set("log", []); store.set("steps", null);
+  } else if (!S.acct || S.acct.email !== email) return err("We couldn't find an account with that email in this browser. Sign up to create one.");
+  $("authPass").value = ""; S.session = true; S.demo = false; store.set("session", true);
+  S.tab = "dashboard"; route();
+};
+$("tryExample").onclick = () => { S.demo = true; S.demoP = structuredClone(EXAMPLE); S.tab = "dashboard"; route(); };
+$("acctBtn").onclick = () => { if (!S.demo) { S.session = false; store.set("session", null); } S.demo = false; S.ai = []; setMode("login"); route(); };
+
+/* ---------- Router: auth → onboarding → app tabs ---------- */
+const VIEWS = ["auth", "onboard", "dashboard", "breakdown", "info", "chat"];
+function route() {
+  const where = S.demo ? S.tab : !S.session || !S.acct ? "auth" : !S.prof.confirmed ? "onboard" : S.tab;
+  VIEWS.forEach(v => $("view-" + v).hidden = v !== where);
+  const inApp = !["auth", "onboard"].includes(where);
+  $("tabs").hidden = !inApp;
+  $("acctBtn").hidden = where === "auth";
+  $("avatar").textContent = S.demo ? "E" : (S.acct?.name || "?")[0].toUpperCase();
+  $("acctLbl").textContent = S.demo ? "Exit example" : "Sign out";
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === where));
+  if (where === "onboard" && !$("onbMsgs").childElementCount) startOnboarding();
+  if (inApp) { renderAll(); if (location.hash.slice(1) !== where) history.replaceState(null, "", "#" + where); }
+  window.scrollTo({ top: 0 });
+}
+const show = tab => { S.tab = ["dashboard", "breakdown", "info", "chat"].includes(tab) ? tab : "dashboard"; route(); };
+const goChat = q => { show("chat"); if (q) askAI(q); };
+function renderAll() {
+  const c = compute(R());
+  $("bdEyebrow").textContent = isEx() ? "Example breakdown" : "Breakdown";
+  $("results").innerHTML = heroView(c) + mathView(c) + tradeView(tradeoffs(R(), c));
+  renderDash(); renderInfo(); renderCtx(); bindChart();
+  if (!$("chatMsgs").childElementCount) resetChat();
+  document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => show(b.dataset.go));
+}
+
+/* ---------- Dashboard ---------- */
+function nextSteps(p, c) {
+  const s = [];
+  if (c.gap > 0) s.push(`Compare term quotes for about ${short(c.suggested)} over ${c.term} years`);
+  if (p.group > 0) s.push("Ask HR whether your work coverage can be converted or kept if you leave");
+  if (p.group > 0 || p.policies > 0) s.push("Check the beneficiaries on your existing coverage");
+  if (p.mortgage > 0 && c.years > 0 && Math.abs(p.mortgageYears - c.years) >= 5) s.push("Price one policy vs. two shorter, laddered policies");
+  s.push("Update My info after a new child, home or job");
+  return s;
+}
+function renderDash() {
+  const p = R(), c = compute(p), checked = store.get("steps") || {};
+  const pct = c.total ? Math.min(100, Math.round(c.existing / c.total * 100)) : 100;
+  const sc = v => (v / c.total * 100).toFixed(3) + "%";
+  const srcs = [
+    ["Coverage through work", p.group, p.group ? ["warn", "Tied to your job"] : ["", "None"], "Group life from your employer. It usually ends if you change jobs."],
+    ["Policies you own", p.policies, p.policies ? ["ok", "Stays with you"] : ["", "None yet"], "Individual term or permanent policies in your name."],
+    ["Savings you counted", p.savings, p.savings ? ["", "Counted"] : ["", "Not counted"], "Money your family could use. It also has other jobs, like emergencies."],
+  ];
+  const when = !isEx() && S.prof.updated ? `Last updated ${new Date(S.prof.updated).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : "";
+  $("view-dashboard").innerHTML = `
+    <div class="view-head"><div><div class="eyebrow">${isEx() ? "Example dashboard" : `Welcome back, ${esc(S.acct.name)}`}</div><h2>Your coverage at a glance</h2>${when ? `<div class="muted" style="font-size:13px;margin-top:4px">${when}</div>` : ""}</div>
+      <div class="actions"><button class="btn" type="button" data-go="info">Edit my info</button><button class="btn ghost" type="button" data-go="chat">Ask about my coverage</button></div></div>
+    ${isEx() ? `<div class="ex-note"><b>You're viewing an example</b> for Maya, 34. Exit the example and create an account to see your own coverage.</div>` : ""}
+    <div class="tiles">
+      <div class="card tile have"><div class="k">Coverage in place</div><div class="v">${short(c.existing)}</div><div class="s">${pct}% of the estimated need</div></div>
+      <div class="card tile need"><div class="k">Estimated need</div><div class="v">${short(c.total)}</div><div class="s">Income, debts, college, final costs</div></div>
+      <div class="card tile left"><div class="k">Left to cover</div><div class="v">${short(c.gap)}</div><div class="s">Starting point ${short(c.suggested)}</div></div>
+      <div class="card tile term"><div class="k">Suggested term</div><div class="v">${c.term} yrs</div><div class="s">Matches your longest need (${c.termNeed} yrs)</div></div>
+    </div>
+    <div class="dash">
+      <div class="col">
+        <div class="card pad">
+          <div class="sec-head"><h2>Your coverage today</h2><span class="muted num" style="font-size:14px">${fmt(c.existing)} of ${fmt(c.total)}</span></div>
+          <div class="meter" role="img" aria-label="${pct}% of the estimated need is covered">
+            ${c.existing ? `<span class="seg have" style="width:${sc(Math.min(c.existing, c.total))}" data-tip="In place: ${fmt(c.existing)}"></span>` : ""}
+            ${c.gap ? `<span class="seg left" style="width:${sc(c.gap)}" data-tip="Left to cover: ${fmt(c.gap)}"></span>` : ""}
+          </div>
+          <div class="legend"><span><i style="background:var(--teal)"></i>In place <b class="num">${short(c.existing)}</b></span><span><i style="background:var(--orange)"></i>Left to cover <b class="num">${short(c.gap)}</b></span></div>
+          <div class="src-list">${srcs.map(([n, a, [k, l], d]) => `<div class="src"><span class="nm">${n}</span><span class="amt">${fmt(a)}</span><span class="dt"><span class="pill ${k}">${l}</span>${d}</span></div>`).join("")}</div>
+        </div>
+        <div class="card pad">
+          <div class="sec-head"><h2>What the need is made of</h2><button class="linkish" type="button" data-go="breakdown">See the math</button></div>
+          <div class="track">${c.lines.filter(l => l.amt > 0).map(l => `<span class="seg ${l.key}" style="width:${sc(l.amt)}" data-tip="${l.label}: ${fmt(l.amt)}"></span>`).join("")}</div>
+          <div class="legend">${c.lines.filter(l => l.amt > 0).map(l => `<span><i style="background:var(--${l.key})"></i>${l.label} <b class="num">${short(l.amt)}</b></span>`).join("")}</div>
+        </div>
+        <div class="card pad">
+          <div class="sec-head"><h2>Tradeoffs to weigh</h2><button class="linkish" type="button" data-go="breakdown">See all</button></div>
+          <div class="trades">${tradeoffs(p, c).slice(0, 2).map(x => `<article class="trade"><span class="eyebrow">${x.tag}</span><h3>${esc(x.title)}</h3><p>${esc(x.body)}</p></article>`).join("")}</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card pad">
+          <div class="sec-head"><h2>Next steps</h2></div>
+          <ul class="steps">${nextSteps(p, c).map((t, i) => `<li><label><input type="checkbox" id="ns${i}" data-step="${esc(t)}" ${checked[t] ? "checked" : ""}><span>${esc(t)}</span></label></li>`).join("")}</ul>
+        </div>
+        <div class="card pad">
+          <div class="sec-head"><h2>Your situation</h2><button class="linkish" type="button" data-go="info">Edit</button></div>
+          <dl class="kv">
+            <dt>Who relies on you</dt><dd>${esc(depsText(p))}</dd>
+            ${kids(p) ? `<dt>Children</dt><dd>${p.children}, youngest ${p.youngest}</dd>` : ""}
+            <dt>Yearly income</dt><dd>${fmt(p.income)}</dd>
+            <dt>Years of support</dt><dd>${c.years}</dd>
+            <dt>Mortgage</dt><dd>${fmt(p.mortgage)}${p.mortgage ? ` · ${p.mortgageYears} yrs left` : ""}</dd>
+            <dt>Other debts</dt><dd>${fmt(p.otherDebt)}</dd>
+          </dl>
+        </div>
+        <div class="note teal">This dashboard is an educational estimate built from your answers. It isn't a quote or a record of your actual policies.</div>
+      </div>
+    </div>`;
+  document.querySelectorAll("[data-step]").forEach(b => b.onchange = () => { const m = store.get("steps") || {}; m[b.dataset.step] = b.checked; store.set("steps", m); });
+}
+
+/* ---------- My info: edit anything saved in the chat, with a change log ---------- */
+function renderInfo() {
+  const p = R();
+  const num = (k, pre, suf) => `<div class="field"><label for="i_${k}">${LABEL[k]}</label><div class="in">${pre ? `<span class="aff">${pre}</span>` : ""}<input id="i_${k}" inputmode="numeric" value="${Number(p[k] || 0).toLocaleString("en-US")}">${suf ? `<span class="aff">${suf}</span>` : ""}</div></div>`;
+  const dep = (v, l) => `<label><input type="checkbox" id="i_dep_${v}" value="${v}" ${has(p, v) ? "checked" : ""}>${l}</label>`;
+  $("view-info").innerHTML = `
+    <div class="view-head"><div><div class="eyebrow">My info</div><h2>What we know about you</h2><div class="muted" style="font-size:14px;margin-top:4px">Fix anything that was saved wrong, or update it when life changes.</div></div></div>
+    <form id="infoForm" novalidate>
+      <div class="info-grid">
+        <div class="card pad"><h3>Household</h3><div class="stack">
+          <div class="field"><label>Who relies on your income</label><div class="checks">${dep("partner", "Partner or spouse")}${dep("kids", "Children")}${dep("relative", "A parent or relative")}${dep("none", "No one right now")}</div></div>
+          <div class="fields">${num("children")}${num("youngest", "", "yrs")}</div></div></div>
+        <div class="card pad"><h3>You</h3><div class="stack"><div class="fields">${num("age", "", "yrs")}${num("income", "$")}</div>${num("years", "", "yrs")}</div></div>
+        <div class="card pad"><h3>Debts</h3><div class="stack"><div class="fields">${num("mortgage", "$")}${num("mortgageYears", "", "yrs")}</div>${num("otherDebt", "$")}</div></div>
+        <div class="card pad"><h3>Goals and coverage</h3><div class="stack">
+          <div class="field"><label for="i_college">College</label><div class="in"><select id="i_college">${Object.entries(COLLEGE).map(([v, l]) => `<option value="${v}" ${p.college === v ? "selected" : ""}>${l}</option>`).join("")}</select></div></div>
+          <div class="fields">${num("group", "$")}${num("policies", "$")}</div>${num("savings", "$")}</div></div>
+      </div>
+      <div class="save-bar"><span id="infoMsg" class="muted" style="font-size:14px" role="status">${isEx() ? "Example data: changes last until you leave the example." : "Changes update your dashboard right away."}</span><button class="btn" type="submit">Save changes</button></div>
+    </form>
+    ${isEx() ? "" : `<div class="card pad" style="margin-top:20px"><div class="sec-head"><h2>Recent changes</h2></div>${S.log.length ? `<ul class="log">${S.log.slice(0, 10).map(l => `<li><time>${new Date(l.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</time>${esc(l.text)}</li>`).join("")}</ul>` : `<p class="muted" style="margin:0">No changes yet.</p>`}</div>`}`;
+  $("i_dep_none").onchange = e => { if (e.target.checked) ["partner", "kids", "relative"].forEach(v => $("i_dep_" + v).checked = false); };
+  ["partner", "kids", "relative"].forEach(v => $("i_dep_" + v).onchange = e => { if (e.target.checked) $("i_dep_none").checked = false; });
+  $("infoForm").onsubmit = e => {
+    e.preventDefault();
+    const msg = t => { $("infoMsg").textContent = t; $("infoMsg").style.color = "var(--accent)"; };
+    const deps = ["partner", "kids", "relative", "none"].filter(v => $("i_dep_" + v).checked);
+    if (!deps.length) return msg("Choose who relies on your income, or “No one right now”.");
+    const next = { ...p, deps, college: $("i_college").value };
+    for (const k of [...MONEY, ...INTS]) {
+      const raw = $("i_" + k).value.replace(/[$,\s]/g, ""), n = Number(raw);
+      if (raw === "" || !isFinite(n) || n < 0) { $("i_" + k).focus(); return msg(`Enter a number for “${LABEL[k]}” (0 is fine).`); }
+      next[k] = INTS.includes(k) ? Math.round(n) : n;
+    }
+    if (deps.includes("kids") && next.children < 1) return msg("Enter how many children, or uncheck Children.");
+    const changed = [...MONEY, ...INTS, "deps", "college"].filter(k => JSON.stringify(next[k]) !== JSON.stringify(p[k]));
+    if (!changed.length) return msg("Nothing changed.");
+    changed.forEach(k => logChange(`${LABEL[k]}: ${showVal(k, p)} → ${showVal(k, next)}`));
+    Object.assign(p, next);
+    if (!isEx()) { S.prof.known = [...new Set([...S.prof.known, ...FLOW.map(f => f.k)])]; save(); }
+    S.ai = []; $("chatMsgs").innerHTML = "";
+    renderAll();
+    $("infoMsg").textContent = `Saved ${changed.length} change${changed.length > 1 ? "s" : ""}. Your dashboard and breakdown are updated.`;
+    $("infoMsg").style.color = "var(--teal)";
+  };
+}
+
+/* ---------- Chat tab: grounded in the saved coverage ---------- */
+function renderCtx() {
+  const p = R(), c = compute(p);
+  $("chatCtx").innerHTML = `<div class="eyebrow">${isEx() ? "Using example data" : "Using your saved info"}</div>
+    <h3 style="margin-top:6px">What I know about your coverage</h3>
+    <dl class="kv">
+      <dt>Through work</dt><dd>${fmt(p.group)}</dd><dt>Policies you own</dt><dd>${fmt(p.policies)}</dd><dt>Savings counted</dt><dd>${fmt(p.savings)}</dd>
+      <dt style="color:var(--teal);font-weight:600">In place</dt><dd style="color:var(--teal)">${fmt(c.existing)}</dd>
+      <dt>Estimated need</dt><dd>${fmt(c.total)}</dd>
+      <dt style="color:var(--accent);font-weight:600">Left to cover</dt><dd style="color:var(--accent)">${fmt(c.gap)}</dd>
+      <dt>Suggested term</dt><dd>${c.term} years</dd>
+    </dl>
+    <p class="muted" style="font-size:13px;margin:0">Something wrong or changed? <button class="linkish" type="button" data-go="info" style="font-size:13px">Edit my info</button></p>`;
+  const q = [];
+  if (p.group) q.push(`What happens to my ${short(p.group)} work coverage if I change jobs?`);
+  q.push(`Is ${short(c.existing)} enough for my family?`, "Term or whole life for me?");
+  if (p.mortgage && c.years && Math.abs(p.mortgageYears - c.years) >= 5) q.push("Should I split this into two policies?");
+  if (p.savings) q.push("Should I count my savings?");
+  $("suggest").innerHTML = "";
+  q.forEach(t => { const b = Object.assign(document.createElement("button"), { type: "button", className: "chip sm", textContent: t }); b.onclick = () => askAI(t); $("suggest").append(b); });
+}
+function resetChat() {
+  S.ai = []; $("chatMsgs").innerHTML = "";
+  const p = R(), c = compute(p);
+  addMsg("chatMsgs", "a", esc(`Hi${isEx() ? "" : " " + S.acct.name}. I can answer questions using ${isEx() ? "Maya's example" : "your"} coverage: ${short(c.existing)} in place today${p.group ? `, including ${short(p.group)} through work` : ""}, against an estimated need of ${short(c.total)}. What would you like to know?`));
+}
+const RULES = () => {
+  const p = R(), c = compute(p);
+  return `You are the assistant inside Coverage Compass, an educational life insurance needs tool.
+Tone: calm, warm, plain language. Define jargon in a few words. Never alarming; avoid words like "shortfall" or "at risk".
+Keep answers under 120 words in short paragraphs. No headings or tables. Use the person's own coverage and numbers below and show simple math.
+Do not recommend companies or specific products, and do not quote prices. If asked about something unrelated to life insurance planning, gently steer back.
+If they mention a life change or a correction, explain the likely effect and tell them they can update it in the My info tab.
+Method: income need = 75% of income × years of support; debts = mortgage + other debts; college = $100,000 per child (public) or $50,000 (half); final expenses $15,000; minus coverage in place; rounded up to the nearest $25,000.
+Coverage in place: work group life ${fmt(p.group)} (usually ends when leaving the job), policies they own ${fmt(p.policies)}, savings counted ${fmt(p.savings)}; total ${fmt(c.existing)}.
+Profile: ${JSON.stringify(p)}
+Calculation: ${JSON.stringify({ lines: c.lines.map(l => [l.label, l.amt]), total: c.total, gap: c.gap, suggested: c.suggested, termYears: c.term })}
+${isEx() ? "These are example numbers for a sample person named Maya, not the viewer's own; refer to them as Maya's." : `The person's first name is ${S.acct.name}.`}`;
+};
+const FALLBACK = [
+  [/job|work|employer|hr/i, () => `Coverage through work usually ends when you leave the job. ${R().group ? `Without the ${short(R().group)} from work, the starting point would rise to ${fmt(compute({ ...R(), group: 0 }).suggested)}.` : ""} Some plans let you convert it to an individual policy, so it's worth asking HR.`],
+  [/term|whole/i, () => "Term life covers a set number of years at a lower cost. Whole life lasts your lifetime and builds cash value, but costs much more for the same amount. When most of your need fades over time, term usually fits best."],
+  [/enough/i, () => { const c = compute(R()); return `You have ${fmt(c.existing)} in place against an estimated need of ${fmt(c.total)}, about ${Math.round(c.existing / c.total * 100)}% of it. A reasonable starting point for added coverage is ${fmt(c.suggested)}.`; }],
+  [/saving/i, () => "Counting savings lowers the coverage you need, but that money then can't also be your emergency fund or retirement savings."],
+  [/two|split|ladder/i, () => "Laddering means buying two policies that end at different times, so coverage steps down as your needs shrink. It can lower total cost compared with one large, long policy."],
+  [/75|income/i, () => "Some of your income goes to your own costs and taxes, which stop if you're gone. Replacing about 75% keeps your family's lifestyle close to what it is today."],
+];
+const fallback = q => (FALLBACK.find(([re]) => re.test(q)) || [0, () => "Every number in your estimate is listed with its formula on the Breakdown tab. To change an answer, use My info."])[1]();
+let busy = false;
+async function askAI(q) {
+  if (busy || !q.trim()) return; busy = true; $("askBtn").disabled = true;
+  addMsg("chatMsgs", "u", esc(q)); S.ai.push({ role: "user", content: q });
+  const bubble = addMsg("chatMsgs", "a", "Thinking…");
+  const sample = await samplePromise;
+  const canned = note => { bubble.innerHTML = esc(fallback(q)) + `<span class="src">${note}</span>`; S.ai.pop(); };
+  if (!sample) canned("Standard answer. Live answers aren't available in this view.");
+  else try {
+    const { text } = await sample([{ role: "user", content: RULES() }, ...S.ai.slice(-8)], {
+      cache: false, onText: ({ text }) => { bubble.textContent = text; $("chatMsgs").scrollTop = $("chatMsgs").scrollHeight; } });
+    S.ai.push({ role: "assistant", content: text });
+  } catch (e) {
+    if (OFF.includes(e.code)) { samplePromise = Promise.resolve(null); canned("Standard answer. Live answers are turned off for this view."); }
+    else { S.ai.pop(); bubble.textContent = (e.text ? e.text + "\n\n" : "") + (e.code === "rate_limited" ? "That's a lot of questions at once. Try again in a minute." : "I couldn't finish that answer. Try asking again."); }
+  }
+  busy = false; $("askBtn").disabled = false;
+}
+
+/* ---------- Wire up and start ---------- */
+$("askForm").onsubmit = e => { e.preventDefault(); const q = $("askIn").value; $("askIn").value = ""; askAI(q); };
+$("onbForm").onsubmit = e => { e.preventDefault(); const t = $("onbIn").value; $("onbIn").value = ""; onbSend(t); };
+$("clearChat").onclick = resetChat;
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => show(t.dataset.tab));
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h !== S.tab && ["dashboard", "breakdown", "info", "chat"].includes(h)) show(h); });
+S.tab = ["dashboard", "breakdown", "info", "chat"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "dashboard";
+route();
+</script>
+
+</body></html>

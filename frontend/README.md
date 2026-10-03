@@ -1,71 +1,100 @@
-# Frontend: life-insurance needs analyzer
+# Frontend: Coverage Compass
 
-React + TypeScript (Vite) client for the FastAPI backend in [../backend](../backend).
-The API contract it implements is in [../backend/README.md](../backend/README.md#contract-decisions).
+React + TypeScript (Vite) client for Coverage Compass, the conversational life insurance needs
+analyzer. The spec is [../docs/coverage-compass/HANDOFF.md](../docs/coverage-compass/HANDOFF.md),
+with a visual reference in `prototype.html` and colors/type in `design-tokens.json`.
 
 ## Quick start
 
 ```bash
-# Terminal 1: backend on :8000 (see backend/README.md)
-cd backend && .venv/bin/uvicorn app.main:app --reload     # Windows: .venv\Scripts\uvicorn
-
-# Terminal 2: frontend on :5173
 cd frontend
 npm install
-npm run dev
+npm run dev          # http://localhost:5173
 ```
 
-Open http://localhost:5173. In dev, Vite proxies `/v1/*` to the backend, so no CORS setup is
-needed. To point the proxy elsewhere (for example if port 8000 is taken):
-
-```bash
-API_PROXY_TARGET=http://localhost:8001 npm run dev
-```
-
-For a deployed build, set `VITE_API_BASE_URL` to the backend origin. See `.env.example`.
-Never put secrets in `VITE_*` variables: they are bundled into public JavaScript. The browser
-never talks to the database or Bedrock directly.
+The app works fully without the backend: sign-up, profile and change log live in this browser,
+onboarding uses the local parser, and Chat uses standard answers. When the backend's AI endpoints
+exist (below), live answers turn on with no frontend change. In dev, Vite proxies `/v1/*` to
+`http://localhost:8000`; override with `API_PROXY_TARGET=http://localhost:8001 npm run dev`.
 
 ## Checks (the same ones CI runs)
 
 ```bash
 npm run lint
+npm test             # vitest: calculator, parser, and a full sign-up → dashboard flow
 npm run build        # tsc -b && vite build
 ```
 
+## Ground rules this code follows
+
+- **The math is deterministic code** in `src/domain/needs.ts`. The AI never computes a number;
+  it only pulls fields out of free text and explains the math.
+- **No model keys or prompts in the browser.** The frontend calls backend endpoints; the server
+  owns the system prompts.
+- **Auth and storage sit behind interfaces** (`services/auth.ts`, `services/profileStore.ts`).
+  The current implementations use `localStorage` and never store passwords.
+- Light theme only. Money uses full dollars wherever it's explained, compact ($1.43M) on tiles.
+
+## Backend AI contract (to be built on the FastAPI side)
+
+Both endpoints should return **503** when no model is configured. The frontend treats 404, 501,
+503 and network errors as "AI unavailable" and falls back for the rest of the page session.
+
+### `POST /v1/ai/extract`
+
+Request:
+
+```json
+{ "askedField": "income", "question": "What's your yearly income before taxes? ...",
+  "profile": { "deps": ["partner"], "income": 0, "...": "..." }, "message": "about 85k" }
+```
+
+Response (validate on the server with the same rules as `clean()` in `src/domain/parse.ts`; the
+client validates again):
+
+```json
+{ "updates": { "income": 85000 }, "ack": "Thanks, noted.", "answer": "" }
+```
+
+Use the extraction prompt in the handoff (section "Extraction endpoint contract"). A fast,
+low-cost model tier is fine.
+
+### `POST /v1/ai/chat`
+
+Request: the last 8 turns plus the data the server needs to build the standing instruction from
+the handoff (section 6):
+
+```json
+{
+  "messages": [{ "role": "user", "content": "Term or whole life for me?" }],
+  "context": {
+    "profile": { "...": "..." },
+    "calculation": { "lines": [["Income replacement", 1111500]], "total": 1584500,
+                     "existing": 176000, "gap": 1408500, "suggested": 1425000, "term": 30 },
+    "firstName": "Maya", "example": false
+  }
+}
+```
+
+Response: the answer as a streamed `text/plain` body (chunks are appended as they arrive).
+Return **429** when rate limited; the UI shows "That's a lot of questions at once."
+
 ## Layout
+
+See [FILE_GUIDE.md](FILE_GUIDE.md) for a description of every file.
 
 ```text
 src/
-  api/
-    types.ts         TypeScript mirror of backend/app/contracts (keep in sync)
-    client.ts        fetch wrapper: bearer token, error envelope -> ApiError, endpoints
-  session/
-    SessionContext.tsx  creates/restores the anonymous session; revision + idempotency handling
-    context.ts       context type and the useSession() hook
-  components/
-    Layout.tsx       header, nav, error banner, disclaimer footer
-    ChatPanel.tsx    conversation + the server's next_question
-    QuestionInput.tsx  typed control per next_question.input_type (integer/currency/expenses/confirm)
-    ExpenseEditor.tsx  one-time expenses, one per category
-    AssessmentPanel.tsx  live estimate: status, all six line items, assumptions, warnings
-  pages/             Home, Planner (chat + estimate), My answers (edit/confirm), Learn
-  utils/format.ts    money formatting, field labels
+  domain/      pure logic: profile model + question flow, compute(), tradeoffs, parser (+ tests)
+  services/    auth, profileStore, ai (backend calls), fallback answers, storage, http
+  state/       AppProvider (app-wide state) and useApp()
+  components/  Layout (top bar), RouteGuard, ChatLog, StackedBar, TradeoffCards
+  pages/       Auth, Onboarding, Dashboard, Breakdown, MyInfo, Chat
+  test/        Vitest setup and the end-to-end flow test
 ```
 
-## Rules the UI follows
+## Leftover files to delete
 
-- **Numbers come from `assessment`, never from chat text.** Amounts are shown in full dollars
-  (`$1,250,000`, not `$1.3M`), and every line item is shown so the total can be checked.
-- **Unknown is not zero.** "I don't know" sends `null`, and the UI shows it as "Don't know".
-- **Writes send `expected_revision` and a fresh `client_request_id`.** On `stale_revision` the
-  client reloads the session and asks the user to retry. On `session_expired` it starts a new one.
-- The session ID and token live in `sessionStorage`, so they clear when the tab closes.
-
-## Not built yet
-
-- **Dependent sub-profiles.** The backend profile only has `dependents_count` and
-  `youngest_dependent_age`. Per-dependent records need a backend contract change first.
-- **Saved user profiles / login.** Sessions are anonymous; reading preferences from an
-  existing account needs auth and the Postgres repository.
-- **Scenarios UI.** `api.runScenarios` is wired up but no screen uses it yet.
+These belong to the earlier Planner UI, are no longer imported, and can be removed:
+`src/api/`, `src/session/`, `src/utils/`, `src/pages/{HomePage,PlannerPage,ProfilePage,LearnPage,NotFoundPage}.tsx`,
+and `src/components/{AssessmentPanel,ChatPanel,ExpenseEditor,QuestionInput}.tsx`.
