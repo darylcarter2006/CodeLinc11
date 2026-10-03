@@ -98,6 +98,35 @@ the handoff (section 6):
 Response: the answer as a streamed `text/plain` body (chunks are appended as they arrive).
 Return **429** when rate limited; the UI shows "That's a lot of questions at once."
 
+## Talk to a licensed professional
+
+The Chat tab has a **Talk to a licensed professional** link for users the assistant isn't helping.
+It opens a short callback-request form (name, email or phone, best time, what they need help with,
+and an opt-in summary of their estimate and recent questions). Nothing in the app pretends to be a
+live agent: a person follows up later.
+
+Requests go to `POST /v1/support/callback-requests` (not built yet). Until it exists, the form says
+"Callback requests aren't connected yet, so nothing was sent." The front end treats 404, 501, 503
+and network errors as not connected, 422 as invalid input, and anything else as a retryable failure.
+
+Request body (`summary` appears only when the user ticks "Share my estimate..."):
+
+```json
+{
+  "name": "Maya", "contactMethod": "email", "contact": "maya@example.com",
+  "bestTime": "morning", "topic": "Should I count my work coverage?",
+  "summary": {
+    "estimate": { "total": 1584500, "existing": 176000, "gap": 1408500, "suggested": 1425000, "termYears": 30 },
+    "recentQuestions": ["Term or whole life for me?"]
+  }
+}
+```
+
+`contactMethod` is `email` or `phone`; `bestTime` is `any`, `morning`, `afternoon` or `evening`;
+`topic` is at most 1,000 characters. Respond **201** on success. Validate everything server-side,
+reject anything that looks like an SSN or account number, and route requests to whoever staffs them
+(an inbox, CRM or scheduling tool).
+
 ## Layout
 
 See [FILE_GUIDE.md](FILE_GUIDE.md) for a description of every file.
