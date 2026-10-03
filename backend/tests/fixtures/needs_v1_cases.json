@@ -1,0 +1,81 @@
+{
+  "_comment": "Golden cases for needs-v1. Any change to calculator output must be intentional and update this file.",
+  "calculation_version": "needs-v1",
+  "cases": [
+    {
+      "name": "blueprint illustrative example",
+      "inputs": {
+        "annual_support_need": 80000,
+        "annual_survivor_contribution": 20000,
+        "support_years": 15,
+        "one_time_expenses": [{"id": "edu", "label": "Education", "category": "education", "amount": 50000}],
+        "available_assets": 30000,
+        "personal_coverage": 100000,
+        "employer_coverage": 150000
+      },
+      "expected": {
+        "annual_shortfall": 60000,
+        "raw_gap": 670000,
+        "additional_coverage_gap": 670000,
+        "line_items": {
+          "ongoing_support": 900000,
+          "one_time_expenses": 50000,
+          "available_assets": -30000,
+          "personal_coverage": -100000,
+          "employer_coverage": -150000,
+          "additional_gap": 670000
+        }
+      }
+    },
+    {
+      "name": "offsets exceed need: applied amounts are capped, raw gap negative",
+      "inputs": {
+        "annual_support_need": 50000,
+        "annual_survivor_contribution": 30000,
+        "support_years": 5,
+        "one_time_expenses": [],
+        "available_assets": 60000,
+        "personal_coverage": 100000,
+        "employer_coverage": 50000
+      },
+      "expected": {
+        "annual_shortfall": 20000,
+        "raw_gap": -110000,
+        "additional_coverage_gap": 0,
+        "line_items": {
+          "ongoing_support": 100000,
+          "one_time_expenses": 0,
+          "available_assets": -60000,
+          "personal_coverage": -40000,
+          "employer_coverage": 0,
+          "additional_gap": 0
+        }
+      }
+    },
+    {
+      "name": "continuing income exceeds spending: no ongoing shortfall",
+      "inputs": {
+        "annual_support_need": 40000,
+        "annual_survivor_contribution": 55000,
+        "support_years": 20,
+        "one_time_expenses": [{"id": "fe", "label": "Final expenses", "category": "final_expenses", "amount": 15000}],
+        "available_assets": 0,
+        "personal_coverage": 0,
+        "employer_coverage": 0
+      },
+      "expected": {
+        "annual_shortfall": 0,
+        "raw_gap": 15000,
+        "additional_coverage_gap": 15000,
+        "line_items": {
+          "ongoing_support": 0,
+          "one_time_expenses": 15000,
+          "available_assets": 0,
+          "personal_coverage": 0,
+          "employer_coverage": 0,
+          "additional_gap": 15000
+        }
+      }
+    }
+  ]
+}
