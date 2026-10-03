@@ -12,6 +12,8 @@ from app.ai.base import (
     ModelTier,
 )
 from app.domain.questions import Question
+from app.repositories.users import GoogleProfile
+from app.security.google import GoogleTokenVerifier, GoogleUnreachable, InvalidGoogleToken
 
 
 class FakeModel(AIAdapter):
@@ -56,3 +58,21 @@ class FakeModel(AIAdapter):
             if self.fail_after_chunks is not None and index >= self.fail_after_chunks:
                 raise RuntimeError("connection dropped")
             yield chunk
+
+
+class FakeGoogleVerifier(GoogleTokenVerifier):
+    """Accepts credentials of the form "good:<sub>:<email>"; anything else is invalid."""
+
+    def __init__(self, unreachable: bool = False) -> None:
+        self.unreachable = unreachable
+
+    async def verify(self, credential: str) -> GoogleProfile:
+        if self.unreachable:
+            raise GoogleUnreachable()
+        kind, _, rest = credential.partition(":")
+        sub, _, email = rest.partition(":")
+        if kind != "good" or not sub or not email:
+            raise InvalidGoogleToken("fake: rejected")
+        return GoogleProfile(
+            sub=sub, email=email, name="Jordan Lee", given_name="Jordan", picture=None
+        )

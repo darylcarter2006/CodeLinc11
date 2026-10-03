@@ -8,7 +8,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import ai, assessments, content, health, messages, profiles, sessions
+from app.api import ai, assessments, auth, content, health, messages, profiles, sessions
 from app.container import Container, build_container
 from app.logging_config import configure_logging
 from app.middleware.error_handlers import register_error_handlers
@@ -47,7 +47,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     register_error_handlers(app)
 
     v1 = APIRouter(prefix="/v1")
-    for module in (health, sessions, profiles, messages, assessments, content, ai):
+    for module in (health, auth, sessions, profiles, messages, assessments, content, ai):
         v1.include_router(module.router)
     app.include_router(v1)
 

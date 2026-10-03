@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     # Leave unset for local Docker Postgres.
     db_ssl_root_cert: str | None = None
 
+    # --- Google sign-in (accounts) ---
+    # OAuth "Web application" client ID from Google Cloud Console. Not a secret, but unset
+    # means Google sign-in is off and /v1/auth/google returns 503.
+    google_client_id: str | None = None
+    # Optional: only accept accounts from this Google Workspace domain (e.g. "example.com").
+    google_hosted_domain: str | None = None
+    account_token_ttl_hours: int = Field(default=168, ge=1, le=24 * 30)
+    auth_rate_limit_per_minute: int = Field(default=10, ge=1)
+
     session_ttl_hours: int = Field(default=4, ge=1, le=72)
     session_turn_limit: int = Field(default=40, ge=1)
     message_max_chars: int = Field(default=2000, ge=1)
@@ -67,6 +76,20 @@ class Settings(BaseSettings):
                 "(e.g. postgresql+asyncpg://user:pass@host:5432/dbname)"
             )
         return value
+
+    @field_validator("google_client_id", "google_hosted_domain", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("google_client_id")
+    @classmethod
+    def _client_id_shape(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip().endswith(".apps.googleusercontent.com"):
+            raise ValueError(
+                "GOOGLE_CLIENT_ID should look like <numbers>-<id>.apps.googleusercontent.com"
+            )
+        return value.strip() if value is not None else None
 
     @field_validator("db_ssl_root_cert")
     @classmethod
