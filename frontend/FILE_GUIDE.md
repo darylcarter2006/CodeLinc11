@@ -33,10 +33,14 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 
 | File | What it does |
 |---|---|
-| `services/auth.ts` | The `AuthService` interface and a local implementation (one account per browser, name and email only, passwords never stored). A real provider can replace it. |
+| `services/auth.ts` | The `AuthService` interface and a local implementation (one account per browser, name and email only, passwords never stored). Handles email sign-up/log-in and Google sign-in. A real provider can replace it. |
+| `services/google.ts` | Google sign-in support: loads Google's sign-in script and reads name and email from the Google token after checking it was issued for this app, hasn't expired and has a verified email. |
+| `services/google.test.ts` | Unit tests for reading Google tokens, including tokens for another app, expired tokens and unverified emails. |
 | `services/profileStore.ts` | The `ProfileStore` interface for the profile, change log and checked next steps, with a browser-storage implementation. Can move to the backend later. |
 | `services/ai.ts` | Calls the backend's `/v1/ai/extract` and `/v1/ai/chat` (streamed). If the backend says AI is unavailable, it switches the app to the local parser and standard answers. |
 | `services/fallback.ts` | Standard, keyword-matched answers for the Chat tab when live AI isn't available. |
+| `services/support.ts` | The `SupportService` interface for "Talk to a licensed professional" callback requests, sending them to the backend and reporting whether they were received, rejected, or can't be sent yet. |
+| `services/support.test.ts` | Unit tests for how each backend response (sent, not connected, invalid, failed) is reported. |
 | `services/storage.ts` | Safe read/write of `cc-*` keys in `localStorage` (works even if storage is blocked). |
 | `services/http.ts` | Small helper for JSON POSTs to the backend, with readable errors. |
 
@@ -56,17 +60,19 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `components/ChatLog.tsx` | Chat building blocks shared by onboarding and Chat: the message list (announced to screen readers), quick-reply chips, and the input form. |
 | `components/StackedBar.tsx` | Horizontal stacked bars with hover tooltips, plus the direct-labeled legend. |
 | `components/TradeoffCard.tsx` | Tradeoff cards, optionally with the Term/Whole comparison. |
+| `components/CallbackDialog.tsx` | The "Talk to a licensed professional" form: name, email or phone, best time, what they need help with, and an opt-in summary of their estimate and recent questions. Validates inline and says plainly when requests can't be sent yet. |
+| `components/GoogleButton.tsx` | The "Sign up / Sign in with Google" button. Shows Google's official button when a client ID is set, otherwise a look-alike that explains Google sign-in isn't set up yet. |
 
 ## Screens (`src/pages/`)
 
 | File | What it does |
 |---|---|
-| `pages/AuthPage.tsx` | Sign up / log in with inline errors, and "Explore with example data instead". |
+| `pages/AuthPage.tsx` | Sign up / log in with inline errors, the Google button, and "Explore with example data instead". |
 | `pages/OnboardingPage.tsx` | The conversational intake: one question at a time, AI extraction with the local parser as backstop, a "Saved so far" panel with progress, and the final confirm step. |
 | `pages/DashboardPage.tsx` | Four tiles, coverage today (meter + sources), what the need is made of, two tradeoffs, next steps checklist, and your situation. |
 | `pages/BreakdownPage.tsx` | The starting-point headline, both bars, the line-by-line table with "Why?" buttons (open Chat), assumptions, and all tradeoffs. |
 | `pages/MyInfoPage.tsx` | Edit every saved answer, with validation, a sticky save bar, and the recent-changes log. |
-| `pages/ChatPage.tsx` | Free-form Q&A grounded in the user's numbers, with a "What I know" summary and suggested questions. |
+| `pages/ChatPage.tsx` | Free-form Q&A grounded in the user's numbers, with a "What I know" summary, suggested questions, and a "Talk to a licensed professional" link. |
 
 ## App entry and styling
 
@@ -82,12 +88,14 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | File | What it does |
 |---|---|
 | `src/test/flow.test.tsx` | End-to-end: sign up → answer every onboarding question with the local parser → confirm → dashboard tiles match `compute()` → edit income → tiles update and a log entry appears. Also example mode → "Why?" → standard answer, and an inline sign-up error. |
+| `src/test/google.test.tsx` | Google sign-in flows: not set up, a new Google user, a returning user who keeps their answers, and a rejected token. |
+| `src/test/callback.test.tsx` | "Talk to a licensed professional" flows: inline validation, sending with and without the shared summary, the not-connected message, and closing with Escape. |
 | `src/test/setup.ts` | Test setup: DOM matchers and a clean page/storage between tests. |
 | `vite.config.ts` | Dev server proxy to the backend and the Vitest settings. |
 | `package.json` | Libraries and commands: `dev`, `build`, `lint`, `typecheck`, `test`, `preview`. |
 | `package-lock.json` | Exact library versions, generated by npm. |
 | `tsconfig*.json`, `.oxlintrc.json` | TypeScript and lint settings. |
-| `.env.example` | Settings template: `VITE_API_BASE_URL` (backend address for builds) and `API_PROXY_TARGET` (dev proxy). |
+| `.env.example` | Settings template: `VITE_API_BASE_URL` (backend address for builds), `API_PROXY_TARGET` (dev proxy) and `VITE_GOOGLE_CLIENT_ID` (Google sign-in). |
 | `README.md` | How to run and test, the ground rules, and the backend AI contract. |
 
 ## Elsewhere in the repo

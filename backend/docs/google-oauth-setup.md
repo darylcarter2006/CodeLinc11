@@ -51,7 +51,7 @@ GOOGLE_CLIENT_ID=<paste the client ID>
 Restart uvicorn. With the client ID unset, `POST /v1/auth/google` returns 503
 `auth_unavailable` and everything else keeps working.
 
-## 3. Database (once per database, after this branch is merged)
+## 3. Database (once per database)
 
 The `users` and `account_tokens` tables come from migration `0003`. From `backend/`:
 
@@ -65,14 +65,15 @@ Only one person needs to run this against RDS.
 
 ## 4. Frontend
 
-The Sign in with Google button lives in a teammate's branch. It needs:
+The Sign in with Google button is already on the auth page (`frontend/src/components/GoogleButton.tsx`).
+Give it the same client ID in `frontend/.env.local`:
 
-- **The same client ID**, usually as `VITE_GOOGLE_CLIENT_ID` in `frontend/.env.local`. It's
-  not a secret; it's visible in the page anyway.
-- **Hand-off:** pass the button's `response.credential` to
-  `signInWithGoogle(credential)` from `useApp()`. That posts it to the backend, stores the
-  account token, and routes the user to onboarding or the dashboard like any other sign-in.
-  Sign-out already revokes the token on the server.
+```dotenv
+VITE_GOOGLE_CLIENT_ID=<the same client ID>
+```
+
+Restart `npm run dev`. With the backend running, sign-in is verified by the server. Without it,
+the button falls back to a browser-only account (see `frontend/README.md`, "Google sign-in").
 
 ## 5. Deployment
 

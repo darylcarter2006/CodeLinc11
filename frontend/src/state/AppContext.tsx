@@ -2,10 +2,9 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode
 import { compute } from '../domain/needs'
 import { EXAMPLE, FLOW, blankSaved, type Profile, type SavedProfile } from '../domain/profile'
 import { ChatError, ai, type ChatContext, type ChatTurn } from '../services/ai'
-import { localAuth, type Account, type AuthService } from '../services/auth'
+import { localAuth, type Account, type AuthResult, type AuthService } from '../services/auth'
 import { fallbackAnswer } from '../services/fallback'
 import { localProfileStore, type ProfileStore, type StepsChecked } from '../services/profileStore'
-import { storage } from '../services/storage'
 import { AppContext, type AppState, type ChatMessage } from './context'
 
 /*
@@ -74,50 +73,33 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
     setSteps(store.loadSteps())
   }, [store])
 
+  /** After any successful sign-in: a new account starts a fresh profile, a returning one loads theirs. */
+  const startSession = useCallback(
+    (result: AuthResult) => {
+      if (result.ok) {
+        if (result.isNew) store.reset()
+        loadFromStore()
+        setAccount(result.account)
+        setDemo(null)
+        resetChat()
+      }
+      return result
+    },
+    [store, loadFromStore, resetChat],
+  )
+
   const signUp = useCallback<AppState['signUp']>(
-    (name, email, password) => {
-      const result = auth.signUp(name, email, password)
-      if (result.ok) {
-        store.reset()
-        loadFromStore()
-        setAccount(result.account)
-        setDemo(null)
-        resetChat()
-      }
-      return result
-    },
-    [auth, store, loadFromStore, resetChat],
+    (name, email, password) => startSession(auth.signUp(name, email, password)),
+    [auth, startSession],
   )
 
-  const logIn = useCallback<AppState['logIn']>(
-    (email, password) => {
-      const result = auth.logIn(email, password)
-      if (result.ok) {
-        loadFromStore()
-        setAccount(result.account)
-        setDemo(null)
-        resetChat()
-      }
-      return result
-    },
-    [auth, loadFromStore, resetChat],
-  )
+  const logIn = useCallback<AppState['logIn']>((email, password) => startSession(auth.logIn(email, password)), [auth, startSession])
 
+  // isNew (a different account than this browser last saw) starts a fresh profile, so one
+  // person's saved answers are never shown to another.
   const signInWithGoogle = useCallback<AppState['signInWithGoogle']>(
-    async (credential) => {
-      const previous = auth.current()?.email ?? storage.get<Account>('account')?.email ?? null
-      const result = await auth.signInWithGoogle(credential)
-      if (result.ok) {
-        // Profiles are stored per browser for now; never show one person's profile to another.
-        if (previous !== result.account.email) store.reset()
-        loadFromStore()
-        setAccount(result.account)
-        setDemo(null)
-        resetChat()
-      }
-      return result
-    },
-    [auth, store, loadFromStore, resetChat],
+    async (credential) => startSession(await auth.signInWithGoogle(credential)),
+    [auth, startSession],
   )
 
   /** "Sign out", or "Exit example" in example mode (which returns a signed-in user to their own data). */
