@@ -96,6 +96,12 @@ def test_request_ids_are_scoped_per_session(client: TestClient) -> None:
     other = client.post(b.url("/messages"), headers=b.headers, json={**body, "text": "3"})
     assert other.status_code == 200
 
+    # A's retry must replay A's own response, never B's.
+    retry = client.post(a.url("/messages"), headers=a.headers, json=body)
+    assert retry.status_code == 200
+    assert retry.json()["session_id"] == a.id
+    assert retry.json()["profile"]["dependents_count"]["value"] == 2
+
 
 def test_turn_limit(make_client: Callable[..., TestClient]) -> None:
     session = SessionHandle(make_client(session_turn_limit=2))

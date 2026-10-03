@@ -21,7 +21,8 @@ cp .env.example .env            # optional; defaults work without it
 - Interactive docs (OpenAPI): http://localhost:8000/docs
 
 You don't need a database or AWS credentials. Sessions are kept in memory, and a rule-based stub
-stands in for the AI model.
+stands in for the AI model. To use PostgreSQL (local Docker or RDS), see
+[docs/database-setup.md](docs/database-setup.md).
 
 ## Checks (the same ones CI runs)
 
@@ -30,6 +31,9 @@ stands in for the AI model.
 .venv/bin/mypy app tests                       # strict mode
 .venv/bin/pytest --cov=app --cov-fail-under=90
 docker build -t insurance-backend .
+
+# API tests against PostgreSQL (needs a migrated database; see docs/database-setup.md)
+REPOSITORY_BACKEND=postgres DATABASE_URL=postgresql+asyncpg://... .venv/bin/pytest tests/api
 ```
 
 ## Layout
@@ -46,7 +50,8 @@ app/
   calculators/       CalculationPolicy interface, needs-v1, version registry (pure functions)
   services/          sessions, conversation turn, extraction validation, profile edits,
                      assessments/scenarios, explanation templates, presenters, idempotency
-  repositories/      SessionRepository interface + in-memory implementation
+  repositories/      SessionRepository interface + in-memory and PostgreSQL implementations
+  db/                SQLAlchemy models, async engine, Alembic migrations
   ai/                AIAdapter interface + deterministic stub
   content/           reviewed educational copy (pending compliance review)
   security/          token generation/hashing, log redaction
@@ -139,9 +144,10 @@ frontend depends on them.
 
 Each item matches a step in blueprint §13. Its interface is already in place.
 
-- **Postgres** (step 4): implement `SessionRepository` in `repositories/postgres.py`, select it
-  in `container.build_repository`, and add Alembic. For the multi-instance version of
-  `session_lock`, insert a *pending* idempotency record before the model call.
+- **Postgres concurrency guard:** the Postgres repository is implemented (step 4), but
+  `session_lock` is a no-op there. Two simultaneous retries can both call the model; one gets
+  409 and its next retry replays. To close that gap, insert a *pending* idempotency record
+  before the model call.
 - **Bedrock** (step 5): implement `AIAdapter` in `ai/bedrock.py` and select it in
   `container.build_ai_adapter`. Validation of model output already lives in
   `services/extraction.py`.

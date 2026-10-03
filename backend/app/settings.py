@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
@@ -20,9 +21,19 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:5173"]
     )
 
-    repository_backend: Literal["memory"] = "memory"
+    repository_backend: Literal["memory", "postgres"] = "memory"
     ai_provider: Literal["stub"] = "stub"
     ai_timeout_seconds: float = 15.0
+
+    # --- PostgreSQL (required when repository_backend = "postgres") ---
+    # Full async DSN: postgresql+asyncpg://user:pass@host:5432/dbname
+    # In AWS this is constructed at startup from Secrets Manager; never hardcode it here.
+    database_url: str | None = None
+    db_pool_size: int = Field(default=10, ge=1, le=100)
+    db_max_overflow: int = Field(default=5, ge=0, le=50)
+    # CA bundle for verifying the server certificate (RDS: global-bundle.pem).
+    # Leave unset for local Docker Postgres.
+    db_ssl_root_cert: str | None = None
 
     session_ttl_hours: int = Field(default=4, ge=1, le=72)
     session_turn_limit: int = Field(default=40, ge=1)
@@ -43,6 +54,23 @@ class Settings(BaseSettings):
     def _no_wildcard(cls, value: list[str]) -> list[str]:
         if "*" in value:
             raise ValueError("CORS_ORIGINS must list explicit origins; '*' is not allowed")
+        return value
+
+    @field_validator("database_url")
+    @classmethod
+    def _validate_database_url(cls, value: str | None) -> str | None:
+        if value is not None and not value.startswith("postgresql+asyncpg://"):
+            raise ValueError(
+                "DATABASE_URL must use the postgresql+asyncpg:// scheme "
+                "(e.g. postgresql+asyncpg://user:pass@host:5432/dbname)"
+            )
+        return value
+
+    @field_validator("db_ssl_root_cert")
+    @classmethod
+    def _cert_exists(cls, value: str | None) -> str | None:
+        if value is not None and not Path(value).is_file():
+            raise ValueError(f"DB_SSL_ROOT_CERT file not found: {value}")
         return value
 
 
