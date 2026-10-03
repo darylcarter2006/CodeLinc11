@@ -1,0 +1,240 @@
+{
+ "name": "Coverage Compass",
+ "version": 1,
+ "color": {
+  "themes": [
+   {
+    "id": "light",
+    "name": "Light"
+   }
+  ],
+  "tokens": [
+   {
+    "name": "ground",
+    "value": "#ffffff",
+    "usage": "Page background. White."
+   },
+   {
+    "name": "surface",
+    "value": "#ffffff",
+    "usage": "Cards, chat pane, input fields."
+   },
+   {
+    "name": "surface-sunk",
+    "value": "#f2f5f9",
+    "usage": "Assistant chat bubbles, table header rows, quiet wells."
+   },
+   {
+    "name": "line",
+    "value": "#dfe4ec",
+    "usage": "Hairline borders and dividers."
+   },
+   {
+    "name": "ink",
+    "value": "#1b2433",
+    "usage": "Primary text."
+   },
+   {
+    "name": "ink-muted",
+    "value": "#5a6475",
+    "usage": "Secondary text and helper copy. 4.5:1 on surface-sunk."
+   },
+   {
+    "name": "brand",
+    "value": "#1f3a5f",
+    "usage": "Dark blue. Display headings, the headline coverage figure."
+   },
+   {
+    "name": "brand-tint",
+    "value": "#e8eef6",
+    "usage": "User chat bubbles, conversation header."
+   },
+   {
+    "name": "on-brand",
+    "value": "#ffffff",
+    "usage": "Text on brand or navy fills."
+   },
+   {
+    "name": "accent",
+    "value": "#b04e1a",
+    "usage": "Orange text: eyebrows, step labels, 'Why?' links. 4.5:1 on white."
+   },
+   {
+    "name": "orange",
+    "value": "#c2541a",
+    "usage": "Primary buttons, top-bar rule, 'left to cover' bar. White text on it is 4.6:1."
+   },
+   {
+    "name": "accent-tint",
+    "value": "#fdf0e6",
+    "usage": "Assumption callouts, selected chips."
+   },
+   {
+    "name": "teal",
+    "value": "#1f6f6a",
+    "usage": "Reassurance: 'already covered', focus rings."
+   },
+   {
+    "name": "teal-tint",
+    "value": "#e3f1ef",
+    "usage": "Reassurance callouts."
+   },
+   {
+    "name": "navy",
+    "value": "#142640",
+    "usage": "Top bar band behind the wordmark."
+   },
+   {
+    "name": "chart-1",
+    "value": "#e07b34",
+    "usage": "Chart series 1: income replacement. Under 3:1 on white: always direct-labeled."
+   },
+   {
+    "name": "chart-2",
+    "value": "#2f5597",
+    "usage": "Chart series 2: debts."
+   },
+   {
+    "name": "chart-3",
+    "value": "#a83a5e",
+    "usage": "Chart series 3: education."
+   },
+   {
+    "name": "chart-4",
+    "value": "#13958b",
+    "usage": "Chart series 4: final expenses."
+   }
+  ]
+ },
+ "type": {
+  "fonts": [],
+  "families": {
+   "display": "\"Newsreader\", Georgia, \"Times New Roman\", serif",
+   "sans": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+  },
+  "groups": [
+   {
+    "name": "Display",
+    "family": "display",
+    "styles": [
+     {
+      "name": "figure-xl",
+      "fontSize": "56px",
+      "lineHeight": "60px",
+      "fontWeight": 500,
+      "sample": "$1,425,000",
+      "usage": "The one headline coverage figure."
+     },
+     {
+      "name": "heading-1",
+      "fontSize": "32px",
+      "lineHeight": "38px",
+      "fontWeight": 600,
+      "sample": "Your coverage picture",
+      "usage": "Page and results titles."
+     },
+     {
+      "name": "heading-2",
+      "fontSize": "22px",
+      "lineHeight": "28px",
+      "fontWeight": 600,
+      "sample": "How we got here",
+      "usage": "Section titles."
+     }
+    ]
+   },
+   {
+    "name": "Text",
+    "family": "sans",
+    "styles": [
+     {
+      "name": "body",
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "fontWeight": 400,
+      "sample": "Who depends on your income today?",
+      "usage": "Chat messages and running text."
+     },
+     {
+      "name": "body-sm",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "fontWeight": 400,
+      "sample": "We ask so the estimate fits your family.",
+      "usage": "Helper copy, table cells."
+     },
+     {
+      "name": "label",
+      "fontSize": "12px",
+      "lineHeight": "16px",
+      "fontWeight": 600,
+      "letterSpacing": "0.08em",
+      "sample": "STEP 3 OF 7",
+      "usage": "Uppercase eyebrows and chip labels."
+     },
+     {
+      "name": "figure",
+      "fontSize": "15px",
+      "lineHeight": "20px",
+      "fontWeight": 600,
+      "sample": "$258,000",
+      "usage": "Money in tables, tabular numerals."
+     }
+    ]
+   }
+  ]
+ },
+ "spacing": {
+  "tokens": [
+   {
+    "name": "space-1",
+    "value": "4px",
+    "usage": "Icon gaps."
+   },
+   {
+    "name": "space-2",
+    "value": "8px",
+    "usage": "Chip gaps, bubble stack gap."
+   },
+   {
+    "name": "space-3",
+    "value": "12px",
+    "usage": "Bubble padding."
+   },
+   {
+    "name": "space-4",
+    "value": "16px",
+    "usage": "Card padding on phones; page gutter."
+   },
+   {
+    "name": "space-6",
+    "value": "24px",
+    "usage": "Card padding on desktop."
+   },
+   {
+    "name": "space-8",
+    "value": "32px",
+    "usage": "Between page sections."
+   }
+  ]
+ },
+ "radius": {
+  "tokens": [
+   {
+    "name": "radius-sm",
+    "value": "6px",
+    "usage": "Inputs, table wells."
+   },
+   {
+    "name": "radius-md",
+    "value": "12px",
+    "usage": "Cards, chat bubbles."
+   },
+   {
+    "name": "radius-pill",
+    "value": "999px",
+    "usage": "Quick-reply chips, buttons."
+   }
+  ]
+ }
+}
