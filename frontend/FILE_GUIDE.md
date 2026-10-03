@@ -82,7 +82,8 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `src/main.tsx` | Mounts the app with the router and state provider. |
 | `src/App.tsx` | The route table. |
 | `src/index.css` | All styles, built from `design-tokens.json`. Light theme only; motion only when the user hasn't asked to reduce it. |
-| `index.html` | Page title and the Newsreader / Public Sans fonts. |
+| `index.html` | Page title, browser-tab icons, and the Newsreader / Public Sans fonts. |
+| `public/favicon.ico`, `public/icon-192.png`, `public/apple-touch-icon.png` | Browser-tab and home-screen icons made from the Lincoln Financial portrait mark (used with the organizers' permission). |
 
 ## Tests and configuration
 
