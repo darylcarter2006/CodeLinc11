@@ -54,7 +54,7 @@ app/
   db/                SQLAlchemy models, async engine, Alembic migrations
   ai/                AIAdapter interface + deterministic stub
   content/           reviewed educational copy (pending compliance review)
-  security/          token generation/hashing, log redaction
+  security/          token generation/hashing, Google ID-token verification, rate limiting, log redaction
   middleware/        request ID + body limit + access log; error envelope handlers
 tests/
   unit/              calculator (golden fixtures), stub AI, extraction rules, domain
@@ -78,6 +78,9 @@ tests/
 | GET | `/v1/sessions/{id}/assessments/latest` | Latest saved, with `is_current` / `stale_reason` |
 | POST | `/v1/sessions/{id}/scenarios` | What-if overrides; nothing saved |
 | GET | `/v1/content/coverage-types` | Term vs permanent education copy |
+| POST | `/v1/auth/google` | Sign in with a Google ID token → account token (see [docs/google-oauth-setup.md](docs/google-oauth-setup.md)) |
+| GET | `/v1/auth/me` | The signed-in user (account token) |
+| POST | `/v1/auth/logout` | Revoke the account token (204) |
 | POST | `/v1/ai/extract` | Coverage Compass onboarding: pull profile fields from one answer |
 | POST | `/v1/ai/chat` | Coverage Compass chat: streamed `text/plain` answer |
 

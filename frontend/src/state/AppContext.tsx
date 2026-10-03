@@ -5,6 +5,7 @@ import { ChatError, ai, type ChatContext, type ChatTurn } from '../services/ai'
 import { localAuth, type Account, type AuthService } from '../services/auth'
 import { fallbackAnswer } from '../services/fallback'
 import { localProfileStore, type ProfileStore, type StepsChecked } from '../services/profileStore'
+import { storage } from '../services/storage'
 import { AppContext, type AppState, type ChatMessage } from './context'
 
 /*
@@ -100,6 +101,23 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
       return result
     },
     [auth, loadFromStore, resetChat],
+  )
+
+  const signInWithGoogle = useCallback<AppState['signInWithGoogle']>(
+    async (credential) => {
+      const previous = auth.current()?.email ?? storage.get<Account>('account')?.email ?? null
+      const result = await auth.signInWithGoogle(credential)
+      if (result.ok) {
+        // Profiles are stored per browser for now; never show one person's profile to another.
+        if (previous !== result.account.email) store.reset()
+        loadFromStore()
+        setAccount(result.account)
+        setDemo(null)
+        resetChat()
+      }
+      return result
+    },
+    [auth, store, loadFromStore, resetChat],
   )
 
   /** "Sign out", or "Exit example" in example mode (which returns a signed-in user to their own data). */
@@ -218,6 +236,7 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
       chatBusy,
       signUp,
       logIn,
+      signInWithGoogle,
       leave,
       enterExample,
       updateSaved: persist,
@@ -227,7 +246,7 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
       askChat,
       resetChat,
     }),
-    [account, demo, profile, saved, log, steps, chat, chatBusy, signUp, logIn, leave, enterExample, persist, confirmProfile, saveInfo, toggleStep, askChat, resetChat],
+    [account, demo, profile, saved, log, steps, chat, chatBusy, signUp, logIn, signInWithGoogle, leave, enterExample, persist, confirmProfile, saveInfo, toggleStep, askChat, resetChat],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

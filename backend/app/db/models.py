@@ -15,6 +15,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
@@ -113,3 +114,33 @@ class IdempotencyRow(Base):
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
     expires_at: MappedColumn[object] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+
+
+class UserRow(Base):
+    __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("google_sub", name="uq_users_google_sub"),)
+
+    id: MappedColumn[str] = mapped_column(Text, primary_key=True)
+    google_sub: MappedColumn[str] = mapped_column(Text, nullable=False)
+    email: MappedColumn[str] = mapped_column(Text, nullable=False)
+    name: MappedColumn[str] = mapped_column(Text, nullable=False)
+    given_name: MappedColumn[str | None] = mapped_column(Text, nullable=True)
+    picture: MappedColumn[str | None] = mapped_column(Text, nullable=True)
+    created_at: MappedColumn[object] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_login_at: MappedColumn[object] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+
+
+class AccountTokenRow(Base):
+    __tablename__ = "account_tokens"
+    __table_args__ = (Index("ix_account_tokens_user", "user_id"),)
+
+    token_hash: MappedColumn[str] = mapped_column(Text, primary_key=True)
+    user_id: MappedColumn[str] = mapped_column(
+        Text, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    expires_at: MappedColumn[object] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    created_at: MappedColumn[object] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
