@@ -11,3 +11,4 @@ Life-insurance needs analyzer: a guided planning tool that estimates a household
 | [frontend/](frontend/) | Coverage Compass: React + TypeScript client (Vite). See [frontend/README.md](frontend/README.md). |
 | [docs/coverage-compass/](docs/coverage-compass/) | Front-end handoff spec, prototype and design tokens. |
 | [.github/workflows/](.github/workflows/) | CI, one workflow per app. |
+| [amplify.yml](amplify.yml) | AWS Amplify Hosting build for the front end. Setup steps: [frontend/README.md](frontend/README.md#deploying-to-aws-amplify). |
