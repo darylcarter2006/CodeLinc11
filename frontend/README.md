@@ -126,9 +126,9 @@ the handoff (section 6):
 Response: the answer as a streamed `text/plain` body (chunks are appended as they arrive).
 Return **429** when rate limited; the UI shows "That's a lot of questions at once."
 
-## Talk to a licensed professional
+## Talk to a licensed Lincoln Financial representative
 
-The Chat tab has a **Talk to a licensed professional** link for users the assistant isn't helping.
+The Chat tab has a **Talk to a licensed Lincoln Financial representative** link for users the assistant isn't helping.
 It opens a short callback-request form (name, email or phone, best time, what they need help with,
 and an opt-in summary of their estimate and recent questions). Nothing in the app pretends to be a
 live agent: a person follows up later.

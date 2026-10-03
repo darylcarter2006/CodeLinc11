@@ -27,11 +27,11 @@ const openDialog = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(await screen.findByRole('button', { name: 'Explore with example data instead' }))
   await user.click(await screen.findByRole('link', { name: 'Chat' }))
   await user.click(await screen.findByRole('button', { name: 'Term or whole life for me?' }))
-  await user.click(screen.getByRole('button', { name: 'Talk to a licensed professional' }))
-  return screen.getByRole('dialog', { name: 'Talk to a licensed professional' })
+  await user.click(screen.getByRole('button', { name: 'Talk to a licensed Lincoln Financial representative' }))
+  return screen.getByRole('dialog', { name: 'Talk to a licensed Lincoln Financial representative' })
 }
 
-describe('Talk to a licensed professional', () => {
+describe('Talk to a licensed Lincoln Financial representative', () => {
   it('validates one field at a time', async () => {
     const { user } = setup(201)
     await openDialog(user)
@@ -87,6 +87,6 @@ describe('Talk to a licensed professional', () => {
     expect(callbackBody()).not.toHaveProperty('summary')
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Talk to a licensed professional' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Talk to a licensed Lincoln Financial representative' })).toHaveFocus()
   })
 })
