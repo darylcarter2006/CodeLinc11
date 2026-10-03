@@ -54,6 +54,34 @@ verified email) and then discards it. **It does not verify the token's signature
 prototype-grade. When real accounts land, send the token to the backend and verify it there
 before trusting it.
 
+## Deploying to AWS Amplify
+
+The build is defined in [`../amplify.yml`](../amplify.yml) (repo root): Node 22, `npm ci`,
+`npm run build`, publishing `frontend/dist`. Someone with access to the team's AWS account and
+admin rights on the GitHub repo does this once:
+
+1. **AWS Console → Amplify → Create new app → GitHub.** Authorize Amplify, pick
+   `darylcarter2006/CodeLinc11` and the `main` branch.
+2. Tick **"My app is a monorepo"** and set the app root to **`frontend`**. Amplify picks up
+   `amplify.yml` automatically.
+3. Under **Environment variables**, add:
+   - `VITE_API_BASE_URL`: the deployed backend's URL, e.g. `https://api.example.com`
+     (no trailing slash). Leave it unset until the backend is deployed; the app still works
+     with the local parser and standard answers.
+   - `VITE_GOOGLE_CLIENT_ID`: the Google OAuth client ID (see "Google sign-in").
+4. **Save and deploy.**
+5. **Hosting → Rewrites and redirects → Manage redirects → Open text editor**, paste the
+   contents of [`amplify-rewrites.json`](amplify-rewrites.json), and save. This makes links like
+   `/dashboard` work on refresh. It deliberately skips `/v1/...`, so API calls are never answered
+   with the app's HTML.
+6. After the first deploy, copy the app's URL (`https://main.<id>.amplifyapp.com`) and:
+   - add it to the Google OAuth client's **Authorized JavaScript origins**;
+   - set the backend's `CORS_ORIGINS` to it (only needed when `VITE_API_BASE_URL` points to a
+     backend on another domain).
+
+Every push to `main` redeploys. `VITE_*` values are baked in at build time, so redeploy after
+changing them. Never put secrets in them: they end up in the public JavaScript.
+
 ## Backend AI contract (to be built on the FastAPI side)
 
 Both endpoints should return **503** when no model is configured. The frontend treats 404, 501,
