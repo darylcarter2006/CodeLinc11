@@ -39,5 +39,9 @@ export async function postJson(path: string, body: unknown, { signal, token }: R
     const data = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null
     throw new HttpError(res.status, data?.error?.code ?? 'http_error', data?.error?.message ?? res.statusText)
   }
+  // A static host's single-page-app fallback answers unknown paths with index.html and 200.
+  // The API never returns HTML, so treat that as "endpoint not found".
+  if (res.headers.get('Content-Type')?.includes('text/html'))
+    throw new HttpError(404, 'not_found', 'The API is not available at this address.')
   return res
 }

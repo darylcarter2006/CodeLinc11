@@ -1,0 +1,24 @@
+# AWS Amplify Hosting build for the Coverage Compass front end (frontend/).
+# Amplify reads this file when the repo is connected; set the app root to "frontend" in the console.
+version: 1
+applications:
+  - appRoot: frontend
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            # Vite 8 needs Node 20.19+; use the same major version as CI.
+            - nvm install 22
+            - nvm use 22
+            - npm ci
+        build:
+          commands:
+            # VITE_API_BASE_URL and VITE_GOOGLE_CLIENT_ID come from Amplify environment variables.
+            - npm run build
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
