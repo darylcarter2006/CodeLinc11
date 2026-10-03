@@ -1,22 +1,25 @@
 import { useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
+import { GoogleButton } from '../components/GoogleButton'
 import { useApp } from '../state/context'
 
 type Mode = 'signup' | 'login'
 
 /* Sign up / log in, with a shortcut into example mode. The guard redirects once this succeeds. */
 export function AuthPage() {
-  const { signUp, logIn, enterExample } = useApp()
+  const { signUp, logIn, signInWithGoogle, enterExample } = useApp()
   const location = useLocation()
   const [mode, setMode] = useState<Mode>((location.state as { mode?: Mode } | null)?.mode ?? 'signup')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [googleError, setGoogleError] = useState('')
 
   const switchMode = (m: Mode) => {
     setMode(m)
     setError('')
+    setGoogleError('')
   }
 
   const submit = (e: FormEvent) => {
@@ -55,6 +58,22 @@ export function AuthPage() {
           <button type="button" aria-pressed={mode === 'login'} onClick={() => switchMode('login')}>
             Log in
           </button>
+        </div>
+        <GoogleButton
+          mode={mode}
+          onCredential={(credential) => {
+            const result = signInWithGoogle(credential)
+            if (!result.ok) setGoogleError(result.error)
+          }}
+          onError={setGoogleError}
+        />
+        {googleError && (
+          <div className="err google-err" role="alert">
+            {googleError}
+          </div>
+        )}
+        <div className="or-rule">
+          <span>or {mode === 'signup' ? 'sign up' : 'log in'} with email</span>
         </div>
         <form className="stack" onSubmit={submit} noValidate>
           {mode === 'signup' && (

@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode
 import { compute } from '../domain/needs'
 import { EXAMPLE, FLOW, blankSaved, type Profile, type SavedProfile } from '../domain/profile'
 import { ChatError, ai, type ChatContext, type ChatTurn } from '../services/ai'
-import { localAuth, type Account, type AuthService } from '../services/auth'
+import { localAuth, type Account, type AuthResult, type AuthService } from '../services/auth'
 import { fallbackAnswer } from '../services/fallback'
 import { localProfileStore, type ProfileStore, type StepsChecked } from '../services/profileStore'
 import { AppContext, type AppState, type ChatMessage } from './context'
@@ -73,11 +73,11 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
     setSteps(store.loadSteps())
   }, [store])
 
-  const signUp = useCallback<AppState['signUp']>(
-    (name, email, password) => {
-      const result = auth.signUp(name, email, password)
+  /** After any successful sign-in: a new account starts a fresh profile, a returning one loads theirs. */
+  const startSession = useCallback(
+    (result: AuthResult) => {
       if (result.ok) {
-        store.reset()
+        if (result.isNew) store.reset()
         loadFromStore()
         setAccount(result.account)
         setDemo(null)
@@ -85,21 +85,19 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
       }
       return result
     },
-    [auth, store, loadFromStore, resetChat],
+    [store, loadFromStore, resetChat],
   )
 
-  const logIn = useCallback<AppState['logIn']>(
-    (email, password) => {
-      const result = auth.logIn(email, password)
-      if (result.ok) {
-        loadFromStore()
-        setAccount(result.account)
-        setDemo(null)
-        resetChat()
-      }
-      return result
-    },
-    [auth, loadFromStore, resetChat],
+  const signUp = useCallback<AppState['signUp']>(
+    (name, email, password) => startSession(auth.signUp(name, email, password)),
+    [auth, startSession],
+  )
+
+  const logIn = useCallback<AppState['logIn']>((email, password) => startSession(auth.logIn(email, password)), [auth, startSession])
+
+  const signInWithGoogle = useCallback<AppState['signInWithGoogle']>(
+    (credential) => startSession(auth.signInWithGoogle(credential)),
+    [auth, startSession],
   )
 
   /** "Sign out", or "Exit example" in example mode (which returns a signed-in user to their own data). */
@@ -218,6 +216,7 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
       chatBusy,
       signUp,
       logIn,
+      signInWithGoogle,
       leave,
       enterExample,
       updateSaved: persist,
@@ -227,7 +226,7 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
       askChat,
       resetChat,
     }),
-    [account, demo, profile, saved, log, steps, chat, chatBusy, signUp, logIn, leave, enterExample, persist, confirmProfile, saveInfo, toggleStep, askChat, resetChat],
+    [account, demo, profile, saved, log, steps, chat, chatBusy, signUp, logIn, signInWithGoogle, leave, enterExample, persist, confirmProfile, saveInfo, toggleStep, askChat, resetChat],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

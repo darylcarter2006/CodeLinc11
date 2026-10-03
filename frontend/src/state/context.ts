@@ -23,6 +23,7 @@ export interface AppState {
   chatBusy: boolean
   signUp(name: string, email: string, password: string): AuthResult
   logIn(email: string, password: string): AuthResult
+  signInWithGoogle(credential: string): AuthResult
   leave(): void
   enterExample(): void
   updateSaved(next: SavedProfile): void

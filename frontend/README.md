@@ -35,6 +35,25 @@ npm run build        # tsc -b && vite build
   The current implementations use `localStorage` and never store passwords.
 - Light theme only. Money uses full dollars wherever it's explained, compact ($1.43M) on tiles.
 
+## Google sign-in
+
+The sign-up / log-in card has a **Sign up with Google** / **Sign in with Google** button (one button
+does both: a new Google email creates an account, a known one logs in). It uses Google Identity
+Services and needs an OAuth client ID:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an
+   **OAuth client ID** of type **Web application**.
+2. Under **Authorized JavaScript origins**, add `http://localhost:5173` (and the deployed URL later).
+3. Put the ID in `frontend/.env.local`: `VITE_GOOGLE_CLIENT_ID=1234-abc.apps.googleusercontent.com`
+4. Restart `npm run dev`.
+
+Without a client ID the button still shows, and explains that Google sign-in isn't set up yet.
+
+The browser reads the Google token for name and email only (checking issuer, audience, expiry and
+verified email) and then discards it. **It does not verify the token's signature**, so this is
+prototype-grade. When real accounts land, send the token to the backend and verify it there
+before trusting it.
+
 ## Backend AI contract (to be built on the FastAPI side)
 
 Both endpoints should return **503** when no model is configured. The frontend treats 404, 501,
