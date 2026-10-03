@@ -1,49 +1,64 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { useSession } from '../session/context'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { areaFor, useApp } from '../state/context'
 
+const TABS = [
+  ['/dashboard', 'Dashboard'],
+  ['/breakdown', 'Breakdown'],
+  ['/info', 'My info'],
+  ['/chat', 'Chat'],
+] as const
+
+/* Navy top bar (wordmark, tabs, account button), the page, and the standing footer note. */
 export function Layout() {
-  const { error, clearError, startOver, busy, status } = useSession()
+  const state = useApp()
+  const navigate = useNavigate()
+  const area = areaFor(state)
+
+  const onLeave = () => {
+    const wasExample = state.isExample
+    state.leave()
+    if (!wasExample) navigate('/auth', { state: { mode: 'login' } })
+  }
 
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <NavLink to="/" className="brand">
-          Coverage Needs Analyzer
-        </NavLink>
-        <nav>
-          <NavLink to="/planner">Planner</NavLink>
-          <NavLink to="/profile">My answers</NavLink>
-          <NavLink to="/learn">Learn</NavLink>
-        </nav>
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy || status !== 'ready'}
-          onClick={() => {
-            if (confirm('Start over? This deletes your answers from this session.')) void startOver()
-          }}
-        >
-          Start over
-        </button>
-      </header>
-
-      {error && (
-        <div className="banner error" role="alert">
-          <span>{error}</span>
-          <button type="button" className="link-button" onClick={clearError}>
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      <main className="app-main">
-        <Outlet />
-      </main>
-
-      <footer className="app-footer muted small">
-        Planning estimate only, not a quote, underwriting decision, or product recommendation. All amounts are estimates
-        you entered.
-      </footer>
-    </div>
+    <>
+      <div className="topbar">
+        <header>
+          <div className="mark">
+            <h1>Coverage Compass</h1>
+            <span className="tag">Life insurance needs analyzer · codeLinc 11, Path 2 concept</span>
+          </div>
+          <div className="hdr-right">
+            {area === 'app' && (
+              <nav className="tabs" aria-label="Sections">
+                {TABS.map(([to, label]) => (
+                  <NavLink key={to} to={to} className="tab">
+                    {label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
+            {area !== 'auth' && (
+              <button className="acct" type="button" onClick={onLeave}>
+                <span className="avatar" aria-hidden>
+                  {state.isExample ? 'E' : (state.account?.name || '?')[0].toUpperCase()}
+                </span>
+                <span>{state.isExample ? 'Exit example' : 'Sign out'}</span>
+              </button>
+            )}
+          </div>
+        </header>
+      </div>
+      <div className="wrap">
+        <main>
+          <Outlet />
+        </main>
+        <footer>
+          Coverage Compass is an educational concept built for the codeLinc 11 coding challenge. Estimates use simple,
+          stated assumptions and are not financial advice or a quote. A licensed professional can help confirm what fits
+          you.
+        </footer>
+      </div>
+    </>
   )
 }
