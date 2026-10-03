@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,6 +14,15 @@ from app.logging_config import configure_logging
 from app.middleware.error_handlers import register_error_handlers
 from app.middleware.request_context import REQUEST_ID_HEADER, RequestContextMiddleware
 from app.settings import Settings, get_settings
+
+
+def _lifespan(container: Container) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        await container.repo.aclose()
+
+    return lifespan
 
 
 def create_app(settings: Settings | None = None, container: Container | None = None) -> FastAPI:
@@ -28,6 +40,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
         docs_url=None if settings.env == "prod" else "/docs",
         redoc_url=None,
         openapi_url=None if settings.env == "prod" else "/openapi.json",
+        lifespan=_lifespan(container),
     )
     app.state.container = container
 

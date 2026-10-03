@@ -32,7 +32,9 @@ def clock() -> FakeClock:
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(env="test", cors_origins=["http://localhost:5173"])
+    # Never read the developer's .env: tests must not touch a real (shared) database.
+    # Explicit environment variables still apply, which is how CI selects Postgres.
+    return Settings(_env_file=None, env="test", cors_origins=["http://localhost:5173"])
 
 
 @pytest.fixture
@@ -43,12 +45,15 @@ def make_client(settings: Settings, clock: FakeClock) -> Iterator[Callable[..., 
         effective = settings.model_copy(update=overrides)
         container = build_container(effective, ai=ai, clock=clock)
         client = TestClient(create_app(effective, container))
+        # Entering the client keeps one event loop for all its requests, which pooled
+        # database connections require.
+        client.__enter__()
         clients.append(client)
         return client
 
     yield factory
     for client in clients:
-        client.close()
+        client.__exit__(None, None, None)
 
 
 @pytest.fixture

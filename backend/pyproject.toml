@@ -8,12 +8,16 @@ dependencies = [
     "uvicorn[standard]>=0.30,<1",
     "pydantic>=2.9,<3",
     "pydantic-settings>=2.5,<3",
+    "sqlalchemy[asyncio]>=2.0,<3",
+    "asyncpg>=0.30,<1",
+    "alembic>=1.13,<2",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
+    "pytest-asyncio>=0.24",
     "httpx2>=2",
     "ruff>=0.6",
     "mypy>=1.11",
@@ -49,6 +53,11 @@ disallow_incomplete_defs = false
 
 [tool.coverage.run]
 source = ["app"]
+# db/ and postgres.py require a live database; tested by integration tests only.
+omit = [
+    "app/db/*",
+    "app/repositories/postgres.py",
+]
 
 [tool.coverage.report]
 show_missing = true
