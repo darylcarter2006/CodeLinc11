@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     ai_refusal_fallbacks: bool = True
     # Per client IP, across /v1/ai/extract and /v1/ai/chat combined.
     ai_rate_limit_per_minute: int = Field(default=20, ge=1)
+    # Across all visitors (per running task): a hard ceiling on model calls, and so on cost,
+    # even if requests come from many IP addresses.
+    ai_global_rate_limit_per_minute: int = Field(default=120, ge=1)
 
     # --- PostgreSQL (required when repository_backend = "postgres") ---
     # Full async DSN: postgresql+asyncpg://user:pass@host:5432/dbname
