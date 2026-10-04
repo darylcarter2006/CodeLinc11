@@ -53,10 +53,16 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
   const [error, setError] = useState('')
   const [stage, setStage] = useState<Stage>('form')
   const firstField = useRef<HTMLInputElement>(null)
+  const doneButton = useRef<HTMLButtonElement>(null)
   const close = useRef(onClose)
   useEffect(() => {
     close.current = onClose
   }, [onClose])
+
+  // The submit button disappears when a result message replaces the form; keep focus in the dialog.
+  useEffect(() => {
+    if (stage === 'sent' || stage === 'unavailable') doneButton.current?.focus()
+  }, [stage])
 
   // Once on open: focus the first field, close on Escape, and return focus to the opener afterwards.
   useEffect(() => {
@@ -130,7 +136,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
             </p>
             <p className="muted small flush">You can keep asking the assistant questions in the meantime.</p>
             <div className="actions">
-              <button className="btn" type="button" onClick={onClose}>
+              <button className="btn" type="button" ref={doneButton} onClick={onClose}>
                 Back to chat
               </button>
             </div>
@@ -144,7 +150,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
               here, or try again later.
             </p>
             <div className="actions">
-              <button className="btn" type="button" onClick={onClose}>
+              <button className="btn" type="button" ref={doneButton} onClick={onClose}>
                 Back to chat
               </button>
             </div>

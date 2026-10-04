@@ -61,6 +61,7 @@ describe('Talk to a licensed Lincoln Financial representative', () => {
     await user.click(screen.getByRole('button', { name: 'Request a callback' }))
 
     expect(await screen.findByText(/Request sent\./)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to chat' })).toHaveFocus()
     expect(screen.getByRole('status')).toHaveTextContent('reach out by email at maya@example.com, in the morning.')
     expect(callbackBody()).toEqual({
       name: 'Maya',
@@ -84,6 +85,7 @@ describe('Talk to a licensed Lincoln Financial representative', () => {
     await user.click(screen.getByRole('button', { name: 'Request a callback' }))
 
     expect(await screen.findByText(/aren't connected yet/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to chat' })).toHaveFocus()
     expect(callbackBody()).not.toHaveProperty('summary')
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
