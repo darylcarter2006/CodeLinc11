@@ -4,6 +4,10 @@ import { fmt } from './format'
 
 export type Dep = 'partner' | 'kids' | 'relative' | 'none'
 export type College = 'public' | 'half' | 'none'
+/* Coverage-type preferences: asked during onboarding and scored in domain/policy.ts. */
+export type CoverFor = 'period' | 'lifelong'
+export type Budget = 'lowest' | 'more'
+export type YesNo = 'yes' | 'no'
 
 export interface Profile {
   deps: Dep[]
@@ -19,6 +23,11 @@ export interface Profile {
   group: number
   policies: number
   savings: number
+  coverFor: CoverFor
+  budget: Budget
+  cashValue: YesNo
+  legacy: YesNo
+  simple: YesNo
 }
 
 export type Field = keyof Profile
@@ -51,6 +60,11 @@ export const EXAMPLE: Profile = {
   group: 156000,
   policies: 0,
   savings: 20000,
+  coverFor: 'period',
+  budget: 'lowest',
+  cashValue: 'no',
+  legacy: 'no',
+  simple: 'yes',
 }
 
 export const blankProfile = (): Profile => ({
@@ -67,6 +81,11 @@ export const blankProfile = (): Profile => ({
   group: 0,
   policies: 0,
   savings: 0,
+  coverFor: 'period',
+  budget: 'lowest',
+  cashValue: 'no',
+  legacy: 'no',
+  simple: 'yes',
 })
 
 export const blankSaved = (): SavedProfile => ({ p: blankProfile(), known: [], confirmed: false, updated: null })
@@ -75,6 +94,18 @@ export const MONEY_FIELDS = ['income', 'mortgage', 'otherDebt', 'group', 'polici
 export const INT_FIELDS = ['children', 'youngest', 'age', 'years', 'mortgageYears'] as const
 export type NumberField = (typeof MONEY_FIELDS)[number] | (typeof INT_FIELDS)[number]
 export const DEPS: Dep[] = ['partner', 'kids', 'relative', 'none']
+export const POLICY_FIELDS = ['coverFor', 'budget', 'cashValue', 'legacy', 'simple'] as const
+export type PolicyField = (typeof POLICY_FIELDS)[number]
+export const isPolicyField = (k: string): k is PolicyField => (POLICY_FIELDS as readonly string[]).includes(k)
+
+/** The answer choices for each coverage-type question; also the onboarding quick replies. */
+export const POLICY_CHOICES: Record<PolicyField, Record<string, string>> = {
+  coverFor: { period: 'A specific period', lifelong: 'My whole life' },
+  budget: { lowest: 'Lowest monthly cost', more: 'Willing to pay more' },
+  cashValue: { no: 'No', yes: 'Yes' },
+  legacy: { no: 'No', yes: 'Yes' },
+  simple: { yes: 'Keep it simple', no: 'I want extra options' },
+}
 
 export const LABEL: Record<Field, string> = {
   deps: 'Who relies on you',
@@ -90,6 +121,11 @@ export const LABEL: Record<Field, string> = {
   group: 'Coverage through work',
   policies: 'Policies you own',
   savings: 'Savings to count',
+  coverFor: 'How long you want coverage',
+  budget: 'Budget priority',
+  cashValue: 'Build cash value',
+  legacy: 'Leave money to heirs',
+  simple: 'Prefer a simpler policy',
 }
 
 export const COLLEGE_LABEL: Record<College, string> = {
@@ -111,16 +147,14 @@ export const depsText = (p: Profile): string =>
         .map((d) => ({ partner: 'Partner', kids: 'Children', relative: 'A parent or relative', none: '' })[d])
         .join(', ') || '—'
 
-export const showVal = (k: Field, p: Profile): string =>
-  k === 'deps'
-    ? depsText(p)
-    : isMoney(k)
-      ? fmt(p[k] as number)
-      : k === 'college'
-        ? COLLEGE_LABEL[p.college]
-        : k === 'years' || k === 'mortgageYears'
-          ? `${p[k]} yrs`
-          : String(p[k])
+export const showVal = (k: Field, p: Profile): string => {
+  if (isPolicyField(k)) return POLICY_CHOICES[k][p[k]]
+  if (k === 'deps') return depsText(p)
+  if (isMoney(k)) return fmt(p[k] as number)
+  if (k === 'college') return COLLEGE_LABEL[p.college]
+  if (k === 'years' || k === 'mortgageYears') return `${p[k]} yrs`
+  return String(p[k])
+}
 
 export interface FlowStep {
   k: Field
@@ -182,8 +216,37 @@ export const FLOW: FlowStep[] = [
   },
   {
     k: 'savings',
-    q: () => "Last one: how much savings would you want counted toward your family's needs?",
+    q: () => "How much savings would you want counted toward your family's needs?",
     chips: () => ['None', '$10k', '$25k'],
+  },
+  // Coverage-type questions. Each answer adds a point to term or permanent (domain/policy.ts);
+  // the tally isn't shown while they answer.
+  {
+    k: 'coverFor',
+    q: () =>
+      'A few quick questions about the kind of coverage that suits you. Do you want coverage for a specific period, like until the kids are grown or the mortgage is paid off, or for your whole life?',
+    chips: () => Object.values(POLICY_CHOICES.coverFor),
+  },
+  {
+    k: 'budget',
+    q: () => 'Is getting the most coverage for the lowest monthly cost the priority, or would you pay more for added benefits?',
+    chips: () => Object.values(POLICY_CHOICES.budget),
+  },
+  {
+    k: 'cashValue',
+    q: () => "Would you like the policy to build cash value you could use while you're alive?",
+    chips: () => Object.values(POLICY_CHOICES.cashValue),
+  },
+  {
+    k: 'legacy',
+    q: () => 'Do you want to leave money to your heirs beyond covering these needs?',
+    chips: () => Object.values(POLICY_CHOICES.legacy),
+  },
+  {
+    k: 'simple',
+    q: () =>
+      'Last one: would you prefer a simple policy that just pays out if you die, or one with extra options, like cash value or flexible payments?',
+    chips: () => Object.values(POLICY_CHOICES.simple),
   },
 ]
 

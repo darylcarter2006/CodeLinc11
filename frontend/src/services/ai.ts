@@ -1,5 +1,5 @@
 import type { Calculation } from '../domain/needs'
-import type { Field, Profile } from '../domain/profile'
+import type { Field, PolicyField, Profile } from '../domain/profile'
 import { HttpError, postJson } from './http'
 
 /*
@@ -26,7 +26,8 @@ export interface ChatTurn {
 }
 
 export interface ChatContext {
-  profile: Profile
+  /** Coverage-type answers are omitted until answered. */
+  profile: Omit<Profile, PolicyField> & Partial<Pick<Profile, PolicyField>>
   calculation: Pick<Calculation, 'total' | 'existing' | 'gap' | 'suggested' | 'term'> & { lines: [string, number][] }
   firstName: string | null
   example: boolean

@@ -23,7 +23,7 @@ from app.ai.base import (
     ModelUnavailable,
 )
 from app.contracts.ai import ChatRequest, ExtractRequest, ExtractResponse
-from app.domain.compass import CompassProfile, clean, compute
+from app.domain.compass import CompassProfile, clean, compute, policy_fit
 from app.errors import AIFailed, AIUnavailable, RateLimited, ValidationFailed
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ _NAME_RE = re.compile(r"[^\w '\-.]", re.UNICODE)
 EXTRACT_SYSTEM = "You fill in a form from a chat message. Reply with only a JSON object."
 
 EXTRACT_PROMPT = """You help fill in a life insurance needs profile from a casual chat.
-Extract every field the person states or corrects in their latest message. Fields: deps (array of "partner","kids","relative", or ["none"]), children (count), youngest (age in years), age, income (yearly USD), years (years of income support), mortgage (USD balance left), mortgageYears, otherDebt (USD total), college ("public","half","none"), group (USD life insurance through work; a multiple of salary means multiply by income {income}), policies (USD of policies they own), savings (USD to count). "None" or "no" for a dollar field means 0.
+Extract every field the person states or corrects in their latest message. Fields: deps (array of "partner","kids","relative", or ["none"]), children (count), youngest (age in years), age, income (yearly USD), years (years of income support), mortgage (USD balance left), mortgageYears, otherDebt (USD total), college ("public","half","none"), group (USD life insurance through work; a multiple of salary means multiply by income {income}), policies (USD of policies they own), savings (USD to count), coverFor ("period" for a set number of years or "lifelong"), budget ("lowest" monthly cost or "more" for added benefits), cashValue ("yes"/"no": build cash value), legacy ("yes"/"no": leave money to heirs), simple ("yes": a simple policy that just pays out, "no": wants extra options like cash value or flexible payments). "None" or "no" for a dollar field means 0.
 We just asked about "{asked_field}": "{question}"
 Current profile: {profile}
 Latest message: \"\"\"{message}\"\"\"
@@ -61,6 +61,7 @@ Method: income need = 75% of income × years of support; debts = mortgage + othe
 Coverage in place: work group life {group} (usually ends when leaving the job), policies they own {policies}, savings counted {savings}; total {existing}.
 Profile: {profile}
 Calculation: {calculation}
+{coverage}
 {who}"""  # noqa: E501
 
 EXAMPLE_WHO = (
@@ -102,6 +103,21 @@ def build_chat_system(profile: CompassProfile, first_name: str | None, example: 
         "suggested": calc.suggested,
         "termYears": calc.term,
     }
+    fit = policy_fit(profile)
+    if fit is None:
+        coverage = (
+            "Coverage type: they haven't answered the five coverage-type questions. If they ask "
+            "which type fits, explain term and permanent briefly and suggest answering those "
+            "questions in the My info tab."
+        )
+    else:
+        name = "term life insurance" if fit.type == "term" else "permanent life insurance"
+        coverage = (
+            f"Coverage type: their answers to five preference questions point to {name} "
+            f"({fit.term} for term, {fit.perm} for permanent). They {'; '.join(fit.reasons)}. "
+            "Describe this as the type that fits their stated preferences, not as a product "
+            "recommendation, and mention they can change those answers in My info."
+        )
     if example:
         who = EXAMPLE_WHO
     else:
@@ -115,6 +131,7 @@ def build_chat_system(profile: CompassProfile, first_name: str | None, example: 
         existing=_usd(calc.existing),
         profile=json.dumps(profile.model_dump(), separators=(",", ":")),
         calculation=json.dumps(calculation, separators=(",", ":")),
+        coverage=coverage,
         who=who,
     ).rstrip()
 

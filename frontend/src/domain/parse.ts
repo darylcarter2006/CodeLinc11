@@ -1,4 +1,18 @@
-import { COLLEGE_LABEL, DEPS, hasDep, hasKids, isInt, isMoney, type Dep, type Field, type Profile, type SavedProfile } from './profile'
+import {
+  COLLEGE_LABEL,
+  DEPS,
+  POLICY_CHOICES,
+  hasDep,
+  hasKids,
+  isInt,
+  isMoney,
+  isPolicyField,
+  type Dep,
+  type Field,
+  type PolicyField,
+  type Profile,
+  type SavedProfile,
+} from './profile'
 
 /* Local answer parser: the only path when live AI is unavailable, and a backstop when it is. */
 
@@ -18,8 +32,37 @@ export function int(t: string): number | undefined {
   return w !== undefined ? WORDS[w] : /\b(none|no)\b/.test(t) ? 0 : undefined
 }
 
+const YES = /\b(yes|yeah|yep|yup|sure|definitely|absolutely|please|i do|i would)\b/
+const NO = /\b(no|nope|nah|not|don'?t|do not|never)\b/
+
+/** Coverage-type answers: a quick-reply label, or a few common phrasings. */
+function parsePolicy(k: PolicyField, t: string): string | undefined {
+  const exact = Object.entries(POLICY_CHOICES[k]).find(([, label]) => label.toLowerCase() === t.trim())
+  if (exact) return exact[0]
+  if (k === 'coverFor') {
+    if (/whole|lifelong|life ?time|forever|entire|rest of|permanent|for life/.test(t)) return 'lifelong'
+    if (/period|until|years|grown|paid off|temporary|while|term/.test(t)) return 'period'
+    return undefined
+  }
+  if (k === 'budget') {
+    if (/pay more|more for|benefit|extra|worth it|willing/.test(t)) return 'more'
+    if (/low|cheap|least|afford|budget|cost|price|save/.test(t)) return 'lowest'
+    return undefined
+  }
+  if (k === 'simple') {
+    // What they describe decides first: a bare "yes" would mean "simple", so "extra options
+    // please" must not fall through to the yes/no check.
+    const wantsOptions = /feature|flexib|option|extra|more/.test(t)
+    const wantsSimple = /simple|easy|straightforward|just pays/.test(t)
+    if (wantsOptions && !wantsSimple) return 'no'
+    if (wantsSimple && !wantsOptions) return /\b(not|don'?t|no)\b/.test(t) ? 'no' : 'yes'
+  }
+  return YES.test(t) ? 'yes' : NO.test(t) ? 'no' : undefined
+}
+
 export function parseLocal(k: Field, text: string, p: Profile): unknown {
   const t = text.toLowerCase()
+  if (isPolicyField(k)) return parsePolicy(k, t)
   if (k === 'deps') {
     const d: Dep[] = []
     if (/partner|spouse|wife|husband|fianc/.test(t)) d.push('partner')
@@ -53,6 +96,7 @@ export function clean(u: unknown): Partial<Profile> {
       const d = v.filter((x): x is Dep => DEPS.includes(x))
       if (d.length) out.deps = d.includes('none') ? ['none'] : d
     } else if (k === 'college' && typeof v === 'string' && v in COLLEGE_LABEL) out.college = v
+    else if (isPolicyField(k) && typeof v === 'string' && Object.hasOwn(POLICY_CHOICES[k], v)) out[k] = v
     else if ((isMoney(k) || isInt(k)) && v !== null && typeof v !== 'boolean' && v !== '' && isFinite(+(v as number)) && +(v as number) >= 0)
       out[k] = isInt(k) ? Math.min(120, Math.round(+(v as number))) : Math.round(+(v as number))
   }

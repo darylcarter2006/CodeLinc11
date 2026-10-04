@@ -44,6 +44,8 @@ describe('full flow', () => {
 
     expect(await screen.findByText(/Hi Maya!/)).toBeInTheDocument()
     const answers = ['Partner and kids', '2', '3', '34', '$78k', 'Until my youngest is 22', '$240,000', '26', '18000', 'Yes, public in-state', '2x salary', 'None', '$20k']
+    // Coverage-type questions: 2 points to permanent, 3 to term, so term fits best.
+    answers.push('My whole life', 'Lowest monthly cost', 'yes', 'no', 'Keep it simple')
     const input = screen.getByLabelText('Your answer')
     for (const answer of answers) {
       await waitFor(() => expect(input).toBeEnabled())
@@ -52,6 +54,14 @@ describe('full flow', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Looks right, show my dashboard' }))
     expect(await screen.findByText('Your coverage at a glance')).toBeInTheDocument()
+
+    // The result pop-up opens on the first visit, then closes back to the dashboard.
+    const result = await screen.findByRole('dialog', { name: 'Term life insurance fits best' })
+    expect(within(result).getByText('3 of your answers point to term and 2 to permanent', { exact: false })).toBeInTheDocument()
+    expect(within(result).getByText('You want coverage that lasts your whole life.')).toBeInTheDocument()
+    await user.click(within(result).getByRole('button', { name: 'Go to my dashboard' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByTestId('policy-card')).toHaveTextContent('Term life insurance fits your answers best')
     expectTiles()
 
     await user.click(screen.getByRole('link', { name: 'My info' }))
@@ -65,6 +75,45 @@ describe('full flow', () => {
 
     await user.click(screen.getByRole('link', { name: 'Dashboard' }))
     expectTiles({ ...EXAMPLE, income: 95000 })
+    // Same coverage type as before, so the pop-up doesn't reopen.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    // Changing preferences until permanent wins opens the pop-up again with the new result.
+    await user.click(screen.getByRole('link', { name: 'My info' }))
+    await user.selectOptions(await screen.findByLabelText('Leave money to heirs'), 'yes')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText('Leave money to heirs: No → Yes')).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Dashboard' }))
+    expect(await screen.findByRole('dialog', { name: 'Permanent life insurance fits best' })).toBeInTheDocument()
+  })
+
+  it('a profile from before the coverage-type questions asks for them instead of assuming term', async () => {
+    const saved = {
+      p: { ...EXAMPLE, coverFor: undefined, budget: undefined, cashValue: undefined, legacy: undefined, simple: undefined },
+      known: ['deps', 'children', 'youngest', 'age', 'income', 'years', 'mortgage', 'mortgageYears', 'otherDebt', 'college', 'group', 'policies', 'savings'],
+      confirmed: true,
+      updated: Date.now(),
+    }
+    localStorage.setItem('cc-account', JSON.stringify({ name: 'Maya', email: 'maya@example.com' }))
+    localStorage.setItem('cc-session', 'true')
+    localStorage.setItem('cc-profile', JSON.stringify(saved))
+    const user = userEvent.setup()
+    renderApp()
+
+    expect(await screen.findByText('Your coverage at a glance')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByTestId('policy-card')).toHaveTextContent('Answer five quick questions')
+
+    // Saving an unrelated change doesn't turn the unanswered questions into answers.
+    await user.click(within(screen.getByTestId('policy-card')).getByRole('link', { name: 'My info' }))
+    expect(await screen.findByLabelText('Build cash value')).toHaveValue('')
+    const income = screen.getByLabelText('Yearly income')
+    await user.clear(income)
+    await user.type(income, '80,000')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await user.click(screen.getByRole('link', { name: 'Dashboard' }))
+    expect(screen.getByTestId('policy-card')).toHaveTextContent('Answer five quick questions')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('example mode: breakdown "Why?" opens Chat with a standard answer', async () => {

@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { CallbackDialog } from '../components/CallbackDialog'
+import { PolicyResultDialog } from '../components/PolicyResultDialog'
 import { Legend, StackedBar } from '../components/StackedBar'
 import { NumberInfo, WithTerms } from '../components/Tip'
 import { TradeoffCards } from '../components/TradeoffCard'
 import { explainInPlace, explainLeft, explainNeed, explainTerm } from '../domain/explain'
 import { fmt, short, shortDate } from '../domain/format'
 import { compute, coveredPct, nextSteps, tradeoffs } from '../domain/needs'
+import { POLICY_TYPE, policyAnswered, policyFit } from '../domain/policy'
 import { EXAMPLE_NAME, depsText, hasKids } from '../domain/profile'
 import { useApp } from '../state/context'
 
@@ -12,8 +16,18 @@ const lineColor = (key: string) => `var(--${key})`
 
 /* Dashboard: tiles, coverage sources, what the need is made of, tradeoffs, next steps, situation. */
 export function DashboardPage() {
-  const { profile: p, isExample, account, saved, steps, toggleStep } = useApp()
+  const { profile: p, isExample, account, saved, steps, toggleStep, policySeen, markPolicySeen } = useApp()
   const c = compute(p)
+  // Coverage type: only once every question is answered (the example profile has them all).
+  const fit = isExample ? policyFit(p) : policyAnswered(saved) ? policyFit(p, saved.known) : null
+  const [policyOpen, setPolicyOpen] = useState(false)
+  const [repOpen, setRepOpen] = useState(false)
+  // Opens on its own the first time a result exists, and again whenever the result changes.
+  const showPolicy = !!fit && (policyOpen || (!isExample && saved.confirmed && policySeen !== fit.type))
+  const closePolicy = () => {
+    if (fit) markPolicySeen(fit.type)
+    setPolicyOpen(false)
+  }
   const pct = coveredPct(c)
   const parts = c.lines.filter((l) => l.amt > 0)
   const sources: [string, number, [string, string], string][] = [
@@ -121,6 +135,27 @@ export function DashboardPage() {
         </div>
 
         <div className="col">
+          <div className="card pad" data-testid="policy-card">
+            <div className="sec-head">
+              <h2>Your coverage type</h2>
+              {fit && (
+                <button className="linkish" type="button" onClick={() => setPolicyOpen(true)}>
+                  See why
+                </button>
+              )}
+            </div>
+            {fit ? (
+              <p className="flush">
+                <b>{POLICY_TYPE[fit.type].name}</b> fits your answers best. {POLICY_TYPE[fit.type].summary}
+              </p>
+            ) : (
+              <p className="flush muted">
+                Answer five quick questions in <Link to="/info">My info</Link> to see whether term or permanent coverage fits you
+                best.
+              </p>
+            )}
+          </div>
+
           <div className="card pad">
             <div className="sec-head">
               <h2>Next steps</h2>
@@ -178,6 +213,27 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+      {showPolicy && fit && (
+        <PolicyResultDialog
+          fit={fit}
+          onClose={closePolicy}
+          onTalkToRep={() => {
+            closePolicy()
+            setRepOpen(true)
+          }}
+        />
+      )}
+      {repOpen && (
+        <CallbackDialog
+          onClose={() => setRepOpen(false)}
+          defaultName={isExample ? '' : (account?.name ?? '')}
+          defaultEmail={isExample ? '' : (account?.email ?? '')}
+          summary={{
+            estimate: { total: c.total, existing: c.existing, gap: c.gap, suggested: c.suggested, termYears: c.term },
+            recentQuestions: [],
+          }}
+        />
+      )}
     </>
   )
 }

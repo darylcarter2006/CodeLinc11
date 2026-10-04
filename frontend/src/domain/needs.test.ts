@@ -3,6 +3,7 @@ import { compute, nextSteps, tradeoffs } from './needs'
 import { EXAMPLE, blankProfile, type Profile } from './profile'
 
 const halfCollege: Profile = {
+  ...blankProfile(),
   deps: ['partner', 'kids'],
   children: 2,
   youngest: 4,

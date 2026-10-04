@@ -15,6 +15,7 @@ MAX_HISTORY_CHARS = 12_000
 AskedField = Literal[
     "deps", "children", "youngest", "age", "income", "years", "mortgage",
     "mortgageYears", "otherDebt", "college", "group", "policies", "savings",
+    "coverFor", "budget", "cashValue", "legacy", "simple",
 ]  # fmt: skip
 
 
