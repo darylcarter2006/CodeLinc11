@@ -48,8 +48,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     register_error_handlers(app)
 
     v1 = APIRouter(prefix="/v1")
-    for module in (health, auth, sessions, profiles, messages, assessments, content, ai):
-    for module in (health, sessions, profiles, messages, assessments, content, chat):
+    for module in (health, auth, sessions, profiles, messages, assessments, content, ai, chat):
         v1.include_router(module.router)
     app.include_router(v1)
 
