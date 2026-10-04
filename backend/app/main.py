@@ -73,7 +73,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
         allow_origins=settings.cors_origins,
         # Auth is a bearer header, not cookies, so credentials are not needed.
         allow_credentials=False,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", REQUEST_ID_HEADER],
         expose_headers=[REQUEST_ID_HEADER],
     )
