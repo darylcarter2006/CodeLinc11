@@ -83,6 +83,17 @@ class Settings(BaseSettings):
     # The original Planner session API (/v1/sessions...). The current front end doesn't use it,
     # and its unauthenticated POST /v1/sessions writes to the database, so it's off by default.
     planner_api_enabled: bool = False
+    # Serve the built front end (frontend/dist) from this folder, so one container runs the
+    # whole app (the root Dockerfile). Unset on AWS, where Amplify serves the front end.
+    static_dir: str | None = None
+
+    # --- How long personal data is kept (docs/data-handling.md) ---
+    # Accounts not signed in to for this long are deleted with their saved answers.
+    account_retention_days: int = Field(default=180, ge=1)
+    # Callback requests (contact details) are deleted after this many days.
+    callback_retention_days: int = Field(default=30, ge=1)
+    # How often each running server deletes what has expired.
+    retention_sweep_hours: float = Field(default=6, gt=0)
 
     session_ttl_hours: int = Field(default=4, ge=1, le=72)
     session_turn_limit: int = Field(default=40, ge=1)

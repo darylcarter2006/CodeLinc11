@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { areaFor, useApp } from '../state/context'
 import { AccessibilityMenu } from './AccessibilityMenu'
 
@@ -68,6 +68,10 @@ export function Layout() {
           Coverage Compass is an educational concept built for the codeLinc 11 coding challenge. Estimates use simple,
           stated assumptions and are not financial advice or a quote. A licensed professional can help confirm what fits
           you.
+          <span className="footer-links">
+            <Link to="/privacy">Privacy policy</Link>
+            <Link to="/terms">Terms of service</Link>
+          </span>
         </footer>
       </div>
     </>

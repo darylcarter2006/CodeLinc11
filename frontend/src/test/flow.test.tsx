@@ -45,7 +45,7 @@ describe('full flow', () => {
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
     expect(await screen.findByText(/Hi Maya!/)).toBeInTheDocument()
-    const answers = ['Partner and kids', '2', '3', '34', '$78k', 'Until my youngest is 22', '$240,000', '26', '18000', 'Yes, public in-state', '2x salary', 'None', '$20k']
+    const answers = ['Partner and kids', '2', '3', '$78k', 'Until my youngest is 22', '$240,000', '26', '18000', 'Yes, public in-state', '2x salary', 'None', '$20k', '$60']
     // Coverage-type questions: 2 points to permanent, 3 to term, so term fits best.
     answers.push('My whole life', 'Lowest monthly cost', 'yes', 'no', 'Keep it simple')
     const input = screen.getByLabelText('Your answer')
@@ -71,7 +71,8 @@ describe('full flow', () => {
     await user.clear(income)
     await user.type(income, '95,000')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
-    expect(await screen.findByText('Saved 1 change. Your dashboard and breakdown are updated.')).toBeInTheDocument()
+    expect(await screen.findByText('Saved 1 change. Your starting point went from $1,425,000 to $1,675,000 (up $250,000).')).toBeInTheDocument()
+    expect(screen.getByText('Starting point: $1,425,000 → $1,675,000 (up $250,000)')).toBeInTheDocument()
     expect(screen.getByText('Yearly income: $78,000 → $95,000')).toBeInTheDocument()
     expect(screen.getByText('Created your profile in the onboarding chat')).toBeInTheDocument()
 
@@ -152,7 +153,7 @@ describe('full flow', () => {
     await user.type(screen.getByLabelText('Password'), 'long-enough')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
-    const answers = ['No one', '40', '$60k', 'None', 'None', 'None', 'None', 'None']
+    const answers = ['No one', '$60k', 'None', 'None', 'None', 'None', 'None', 'Not sure']
     answers.push('My whole life', 'Lowest monthly cost', 'no', 'no', 'Keep it simple')
     const input = await screen.findByLabelText('Your answer')
     while (!screen.queryByRole('button', { name: 'Change something' })) {

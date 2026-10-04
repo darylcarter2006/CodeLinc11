@@ -70,7 +70,7 @@ def test_term_caps_at_thirty_and_uses_mortgage_years_only_with_a_mortgage() -> N
         ({"income": 85000}, {"income": 85000}),
         ({"income": "85000"}, {"income": 85000}),  # numeric strings, like JS unary plus
         ({"income": 2.5}, {"income": 3}),  # Math.round rounds .5 up
-        ({"age": 130}, {"age": 120}),  # ages and counts capped at 120
+        ({"youngest": 130}, {"youngest": 120}),  # ages and counts capped at 120
         ({"savings": -1}, {}),
         ({"savings": True}, {}),
         ({"savings": None}, {}),

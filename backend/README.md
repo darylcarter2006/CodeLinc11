@@ -79,6 +79,7 @@ tests/
 | POST | `/v1/auth/password-reset/confirm` | Set a new password from a reset link → account token |
 | POST | `/v1/auth/logout` | Revoke the account token (204) |
 | GET / PUT | `/v1/account/profile` | The signed-in person's saved answers, change log and checklist |
+| DELETE | `/v1/account` | Delete the account and everything kept for it (password required if it has one) (204) |
 | POST | `/v1/ai/extract` | Coverage Compass onboarding: pull profile fields from one answer |
 | POST | `/v1/ai/chat` | Coverage Compass chat: streamed `text/plain` answer |
 | POST | `/v1/support/callback-requests` | Ask a licensed representative to follow up (201) |
@@ -119,6 +120,11 @@ Turn it on only for local work on that API (the test suite turns it on).
   email. If that account's password was set by someone who never proved they own the address
   (no reset link used yet), Google sign-in removes that password and signs out its sessions.
   A Google-only account adds a password through "Forgot password?".
+- **Deleting and expiry** ([docs/data-handling.md](../docs/data-handling.md)): `DELETE /v1/account`
+  removes the account, its saved answers, tokens, reset links and callback requests. Each server
+  also deletes accounts unused for `ACCOUNT_RETENTION_DAYS` (180), callback requests older than
+  `CALLBACK_RETENTION_DAYS` (30), and expired tokens, at start-up and every
+  `RETENTION_SWEEP_HOURS` (6).
 - **Saved state** (`/v1/account/profile`) is validated field by field (same bounds as the AI
   endpoints), capped at 50 log entries and 20 checklist items, and only ever readable with that
   account's token.
@@ -132,6 +138,12 @@ valid account token the request is linked to the account. Requests are stored in
 Security number or a 10+ digit account or card number, checks that the contact matches the
 chosen method, and never logs the contact details. Limits: `SUPPORT_RATE_LIMIT_PER_HOUR` per
 client IP (default 5) and `SUPPORT_GLOBAL_RATE_LIMIT_PER_HOUR` across everyone (default 200).
+
+### Serving the front end too
+
+With `STATIC_DIR` set to a built front end (`frontend/dist`), this server also serves the app's
+pages and files, so one container runs everything (the [root Dockerfile](../Dockerfile)). API
+paths are never answered with the page. On AWS this is unset: Amplify serves the front end.
 
 ### Security headers
 
@@ -161,6 +173,11 @@ frontend calls them before an account exists, so they are rate limited per clien
   through `clean()` in `app/domain/compass.py`, a port of the frontend's validator. A link in
   `ack`/`answer` is dropped. Unusable output returns empty fields, so the frontend's parser
   takes over.
+- **Figures are checked before they're shown** ([app/domain/figures.py](app/domain/figures.py)):
+  the chat answer is collected in full (within 60 seconds), and every dollar amount in it must
+  match an amount the server's own calculation produced for this profile, or one the person
+  typed. Otherwise the reply is `502 ai_unverified` and the front end shows a standard answer and
+  says why. Onboarding acknowledgements with an unchecked figure are dropped the same way.
 - **Chat:** the numbers in the standing instruction are **recomputed on the server** with
   `compute()` (a port of `frontend/src/domain/needs.ts`, tested against the handoff vectors).
   The browser's `calculation` field is ignored. Errors before the first chunk return

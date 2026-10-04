@@ -23,6 +23,16 @@ export interface Line {
   how: string
 }
 
+/** One part of the need, with its share of the total and the answers that set it. */
+export interface Driver {
+  key: LineKey
+  label: string
+  amt: number
+  /** Percent of the total need, 0-100. */
+  share: number
+  answers: string
+}
+
 export interface Calculation {
   lines: Line[]
   total: number
@@ -38,6 +48,10 @@ export interface Calculation {
   kids: number
   term: number
   termNeed: number
+  /** The parts of the need, largest first (zero amounts left out). */
+  drivers: Driver[]
+  /** Their comfortable monthly budget as yearly and whole-term totals; null when they weren't sure. */
+  budget: { monthly: number; yearly: number; overTerm: number } | null
 }
 
 const roundUp = (v: number) => Math.ceil(v / STEP) * STEP
@@ -79,6 +93,17 @@ export function compute(p: Profile): Calculation {
   const gap = Math.max(0, total - existing)
   const termNeed = Math.max(years, p.mortgage > 0 ? p.mortgageYears : 0)
   const term = TERMS.find((t) => t >= termNeed) ?? 30
+  const answers: Record<LineKey, string> = {
+    c1: kids && years > yearsEntered ? "your income and your youngest's age" : 'your income and years of support',
+    c2: 'your mortgage and other debts',
+    c3: 'number of children and the college choice',
+    c4: 'a standard assumption, not your answers',
+  }
+  const drivers = lines
+    .filter((l) => l.amt > 0)
+    .map((l) => ({ key: l.key, label: l.label, amt: l.amt, share: total ? Math.round((l.amt / total) * 100) : 0, answers: answers[l.key] }))
+    .sort((a, b) => b.amt - a.amt)
+  const budget = p.monthlyBudget > 0 ? { monthly: p.monthlyBudget, yearly: p.monthlyBudget * 12, overTerm: p.monthlyBudget * 12 * term } : null
   return {
     lines,
     total,
@@ -92,6 +117,8 @@ export function compute(p: Profile): Calculation {
     kids,
     term,
     termNeed,
+    drivers,
+    budget,
   }
 }
 
@@ -174,6 +201,18 @@ export function tradeoffs(p: Profile, c: Calculation): Tradeoff[] {
       tag: 'College',
       title: 'Fully funding college',
       body: `Covering public in-state college adds ${fmt(c.lines[2].amt)}. Planning for about half would bring the starting point to ${fmt(half.suggested)}, with the rest from savings, aid or work.`,
+    })
+  }
+  if (c.budget && c.gap > 0) {
+    const levers: string[] = []
+    const shorter = [10, 15, 20, 25].filter((x) => x < c.term).pop()
+    if (shorter && c.years > 0) levers.push(`a ${shorter}-year term instead of ${c.term}`)
+    if (c.kids && p.college === 'public') levers.push(`planning for about half of college (starting point ${short(compute({ ...p, college: 'half' }).suggested)})`)
+    levers.push('term rather than permanent coverage, which costs much less for the same amount')
+    t.push({
+      tag: 'Budget',
+      title: `Fitting ${fmt(c.budget.monthly)} a month`,
+      body: `You said about ${fmt(c.budget.monthly)} a month is comfortable: ${fmt(c.budget.yearly)} a year, or ${fmt(c.budget.overTerm)} over a ${c.term}-year term. When a licensed representative prices the ${short(c.suggested)} starting point, compare the premium with that. If it comes in higher, the levers in your answers are ${levers.join('; ')}.`,
     })
   }
   if (hasDep(p, 'none'))

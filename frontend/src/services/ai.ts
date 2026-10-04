@@ -1,4 +1,3 @@
-import type { Calculation } from '../domain/needs'
 import type { Field, PolicyField, Profile } from '../domain/profile'
 import { HttpError, postJson } from './http'
 
@@ -25,15 +24,18 @@ export interface ChatTurn {
   content: string
 }
 
+/**
+ * Only what the explanation needs: the profile numbers (the server recomputes the estimate from
+ * them). Not the person's name, and not the browser's own figures.
+ */
 export interface ChatContext {
   /** Coverage-type answers are omitted until answered. */
   profile: Omit<Profile, PolicyField> & Partial<Pick<Profile, PolicyField>>
-  calculation: Pick<Calculation, 'total' | 'existing' | 'gap' | 'suggested' | 'term'> & { lines: [string, number][] }
-  firstName: string | null
   example: boolean
 }
 
-export type ChatErrorCode = 'unavailable' | 'rate_limited' | 'failed'
+/** unverified: the server's check found figures that don't match the estimate, so it sent none. */
+export type ChatErrorCode = 'unavailable' | 'rate_limited' | 'failed' | 'timeout' | 'unverified'
 
 export class ChatError extends Error {
   readonly code: ChatErrorCode
@@ -46,9 +48,13 @@ export class ChatError extends Error {
 // 404/501: endpoint not deployed yet. 503: no model configured. 0: backend unreachable.
 const UNAVAILABLE = [0, 404, 501, 503]
 let available = true
+// A little longer than the server's own limits (30 s to extract, 60 s for a checked chat answer).
+const EXTRACT_TIMEOUT_MS = 35_000
+const CHAT_TIMEOUT_MS = 70_000
 
 const markIfUnavailable = (e: unknown) => {
-  if (e instanceof HttpError && UNAVAILABLE.includes(e.status)) available = false
+  // A slow answer isn't a missing backend: keep trying live answers next time.
+  if (e instanceof HttpError && UNAVAILABLE.includes(e.status) && e.code !== 'timeout') available = false
 }
 
 export const ai = {
@@ -58,7 +64,7 @@ export const ai = {
   async extract(req: ExtractRequest): Promise<ExtractResult | null> {
     if (!available) return null
     try {
-      const res = await postJson('/ai/extract', { ...req, message: req.message.slice(0, 500) })
+      const res = await postJson('/ai/extract', { ...req, message: req.message.slice(0, 500) }, { signal: AbortSignal.timeout(EXTRACT_TIMEOUT_MS) })
       const data = (await res.json()) as Partial<ExtractResult> | null
       return {
         updates: data?.updates ?? {},
@@ -71,16 +77,19 @@ export const ai = {
     }
   },
 
-  /** Stream a grounded answer. `onText` gets the full text so far. Throws ChatError. */
+  /** A grounded answer whose figures the server has checked. `onText` gets the text as it arrives. Throws ChatError. */
   async chat(messages: ChatTurn[], context: ChatContext, onText: (text: string) => void): Promise<string> {
     if (!available) throw new ChatError('unavailable')
     let res: Response
     try {
-      res = await postJson('/ai/chat', { messages: messages.slice(-8), context })
+      res = await postJson('/ai/chat', { messages: messages.slice(-8), context }, { signal: AbortSignal.timeout(CHAT_TIMEOUT_MS) })
     } catch (e) {
       markIfUnavailable(e)
       if (!available) throw new ChatError('unavailable')
-      throw new ChatError(e instanceof HttpError && e.status === 429 ? 'rate_limited' : 'failed')
+      const code = e instanceof HttpError ? e.code : ''
+      throw new ChatError(
+        code === 'timeout' ? 'timeout' : code === 'ai_unverified' ? 'unverified' : e instanceof HttpError && e.status === 429 ? 'rate_limited' : 'failed',
+      )
     }
     if (!res.body) {
       const text = await res.text()

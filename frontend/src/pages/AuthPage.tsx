@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { GoogleButton } from '../components/GoogleButton'
 import { useApp } from '../state/context'
 
@@ -155,6 +155,13 @@ export function AuthPage() {
               <p className="fine">
                 Your answers are saved to your account so you can pick up on any device. Passwords are stored only as a secure
                 hash.
+                {mode === 'signup' && (
+                  <>
+                    {' '}
+                    By creating an account, you agree to the <Link to="/terms">terms of service</Link> and{' '}
+                    <Link to="/privacy">privacy policy</Link>.
+                  </>
+                )}
               </p>
             </form>
           </>

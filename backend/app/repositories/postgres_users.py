@@ -188,6 +188,22 @@ class PostgresUserRepository(UserRepository):
                 )
             )
 
+    async def delete_user(self, user_id: str) -> None:
+        async with db_session() as db:
+            # Tokens, reset links and saved state go with it (ON DELETE CASCADE).
+            await db.execute(delete(UserRow).where(UserRow.id == user_id))
+
+    async def purge(self, now: datetime, inactive_before: datetime) -> int:
+        async with db_session() as db:
+            await db.execute(delete(AccountTokenRow).where(AccountTokenRow.expires_at <= now))
+            await db.execute(
+                delete(PasswordResetTokenRow).where(PasswordResetTokenRow.expires_at <= now)
+            )
+            deleted = await db.execute(
+                delete(UserRow).where(UserRow.last_login_at < inactive_before).returning(UserRow.id)
+            )
+            return len(deleted.all())
+
     async def consume_reset_token(self, token_hash: str, now: datetime) -> str | None:
         async with db_session() as db:
             # Deleting returns the link only once, even if it is used twice at the same moment.

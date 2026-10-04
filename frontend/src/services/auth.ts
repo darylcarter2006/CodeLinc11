@@ -1,4 +1,4 @@
-import { HttpError, postJson, requestJson } from './http'
+import { HttpError, postJson, request, requestJson } from './http'
 import { storage } from './storage'
 
 /*
@@ -31,6 +31,8 @@ export interface AuthService {
   /** Use a reset link's token; signs in on success. */
   resetPassword(token: string, password: string): Promise<AuthResult>
   changePassword(current: string, next: string): Promise<ActionResult>
+  /** Delete the account and everything kept for it on the server. Needs the password if it has one. */
+  deleteAccount(password: string | null): Promise<ActionResult>
   /** Forget the session in this browser (sign-out, or a token the server no longer accepts). */
   forget(): void
   /** Revoke a token on the server. Best effort: it expires there regardless. */
@@ -117,6 +119,17 @@ export const serverAuth: AuthService = {
     if (!token) return { ok: false, error: 'Your sign-in has expired. Please log in again.' }
     try {
       await postJson('/auth/password', { current_password: current, new_password: next }, { token })
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: authErrorMessage(e) }
+    }
+  },
+
+  async deleteAccount(password) {
+    const token = readSession()?.token
+    if (!token) return { ok: false, error: 'Your sign-in has expired. Please log in again.' }
+    try {
+      await request('DELETE', '/account', password === null ? {} : { password }, { token })
       return { ok: true }
     } catch (e) {
       return { ok: false, error: authErrorMessage(e) }

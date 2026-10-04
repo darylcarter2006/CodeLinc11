@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import traceback
 from datetime import UTC, datetime
 
 ALLOWED_FIELDS = frozenset(
@@ -39,7 +40,9 @@ class JsonFormatter(logging.Formatter):
                 payload[key] = record.__dict__[key]
         if record.exc_info:
             payload["exc_type"] = record.exc_info[0].__name__ if record.exc_info[0] else None
-            payload["traceback"] = self.formatException(record.exc_info)
+            # Stack frames only: an exception's message can quote the values being processed
+            # (someone's income, say), so it never reaches the log.
+            payload["traceback"] = "".join(traceback.format_tb(record.exc_info[2]))
         return json.dumps(payload, default=str)
 
 

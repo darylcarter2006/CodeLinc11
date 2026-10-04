@@ -85,6 +85,12 @@ Without a backend there is no Google sign-in: the browser never trusts a Google 
   state are loaded from `GET /v1/account/profile` after sign-in, kept in memory, and saved with
   `PUT /v1/account/profile` after every change; sign-out leaves nothing behind. If a save fails, a
   banner says so and it retries.
+- **Delete my account** (My info) deletes the account and its saved answers on the server after
+  the password is confirmed. Accounts unused for 180 days are deleted automatically; see
+  [../docs/data-handling.md](../docs/data-handling.md).
+- **What the model gets:** Chat sends the profile numbers and the last few turns, not the person's
+  name or the browser's own figures (the server recomputes them). AI calls time out after 35
+  seconds (onboarding) and 70 seconds (Chat), and the app carries on with standard answers.
 - **Older browser-only data:** the first time someone signs up or logs in with the same email the
   earlier version used, that saved profile moves into their account, and the old `cc-*` keys are
   removed either way.

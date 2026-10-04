@@ -17,12 +17,14 @@ export interface FakeServerOptions {
   supportStatus?: number
   /** Accept Google credentials of the form "good:<sub>:<email>" (default true). */
   google?: boolean
+  /** Reply for POST /v1/ai/chat (default: 404, so Chat uses standard answers). */
+  chat?: () => Response
 }
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const apiError = (status: number, code: string, message = code) => json({ error: { code, message, request_id: 'req_test' } }, status)
 
-export function installFakeServer({ supportStatus = 201, google = true }: FakeServerOptions = {}) {
+export function installFakeServer({ supportStatus = 201, google = true, chat }: FakeServerOptions = {}) {
   const users = new Map<string, FakeUser>()
   const tokens = new Map<string, string>()
   const states = new Map<string, unknown>()
@@ -57,6 +59,7 @@ export function installFakeServer({ supportStatus = 201, google = true }: FakeSe
     const userId = tokens.get(auth)
     const signedIn = userId ? users.get(userId) : undefined
 
+    if (path === '/ai/chat' && chat) return chat()
     if (path.startsWith('/ai/')) return new Response(null, { status: 404 })
     if (path === '/support/callback-requests') return supportStatus === 201 ? json({ id: 'cbk_1' }, 201) : new Response(null, { status: supportStatus })
 
@@ -106,6 +109,13 @@ export function installFakeServer({ supportStatus = 201, google = true }: FakeSe
       if (signedIn.password === null) return apiError(409, 'password_not_set', 'This account signs in with Google.')
       if (signedIn.password !== body.current_password) return apiError(401, 'invalid_login', "Your current password isn't right.")
       signedIn.password = body.new_password
+      return new Response(null, { status: 204 })
+    }
+    if (path === '/account' && method === 'DELETE') {
+      if (signedIn.password !== null && body.password !== signedIn.password) return apiError(401, 'invalid_login', "Your password isn't right.")
+      users.delete(signedIn.id)
+      states.delete(signedIn.id)
+      for (const [t, u] of tokens) if (u === signedIn.id) tokens.delete(t)
       return new Response(null, { status: 204 })
     }
     if (path === '/account/profile' && method === 'GET') return json({ state: states.get(signedIn.id) ?? null, updated_at: null })

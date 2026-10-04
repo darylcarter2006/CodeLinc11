@@ -67,6 +67,9 @@ export function DashboardPage() {
         <Tile tone="left" k="Left to cover" v={short(c.gap)} s={`Starting point ${short(c.suggested)}`} info={explainLeft(c)} />
         <Tile tone="term" k="Term that matches your needs" v={`${c.term} yrs`} s={`Matches your longest need (${c.termNeed} yrs)`} info={explainTerm(p, c)} />
       </div>
+      <p className="estimate-note" data-testid="estimate-note">
+        Estimates from your answers, not financial advice or a quote. See Breakdown for the math and what would move them.
+      </p>
 
       <div className="dash">
         <div className="col">

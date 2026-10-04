@@ -184,6 +184,14 @@ class AccountService:
         logger.info("password_reset", extra={"session_ref": log_safe_session_id(user.id)})
         return await self._issue_token(user)
 
+    def confirm_password(self, user: UserRecord, password: str | None) -> None:
+        """Re-check the password before something that can't be undone. Google-only accounts
+        have none; for them the signed-in token is the check."""
+        if user.password_hash is not None and not verify_password(
+            user.password_hash, password or ""
+        ):
+            raise InvalidLogin("Your password isn't right.")
+
     async def authorize(self, raw_token: str | None) -> UserRecord:
         if raw_token is None:
             raise Unauthorized()

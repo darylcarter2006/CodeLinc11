@@ -31,3 +31,17 @@ describe('postJson', () => {
     await expect(postJson('/ai/chat', {})).rejects.toMatchObject({ status: 0, code: 'network_error' })
   })
 })
+
+describe('time limits', () => {
+  it('reports a request that ran past its time limit as a timeout, not a missing server', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => init.signal?.addEventListener('abort', () => reject(init.signal?.reason))),
+      ),
+    )
+    await expect(postJson('/ai/chat', {}, { signal: AbortSignal.timeout(5) })).rejects.toMatchObject({ status: 0, code: 'timeout' })
+  })
+})
+

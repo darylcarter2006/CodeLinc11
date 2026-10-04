@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { shortDate } from '../domain/format'
+import { fmt, shortDate } from '../domain/format'
 import { ADULT_AGE, compute } from '../domain/needs'
 import {
   COLLEGE_LABEL,
@@ -135,15 +135,19 @@ function InfoForm({ profile: p, known, status, setStatus, onSave }: FormProps) {
       (k) => JSON.stringify(next[k]) !== JSON.stringify(p[k]) || newlyAnswered.includes(k as PolicyField),
     )
     if (!changed.length) return setStatus({ text: 'Nothing changed.', tone: 'error' })
+    const moved = movement(compute(p).suggested, compute(next).suggested)
     setStatus({
-      text: `Saved ${changed.length} change${changed.length > 1 ? 's' : ''}. Your dashboard and breakdown are updated.`,
+      text: `Saved ${changed.length} change${changed.length > 1 ? 's' : ''}. ${moved.sentence}`,
       tone: 'ok',
     })
     onSave(
       next,
-      changed.map((k) =>
-        newlyAnswered.includes(k as PolicyField) ? `${LABEL[k]}: ${showVal(k, next)}` : `${LABEL[k]}: ${showVal(k, p)} → ${showVal(k, next)}`,
-      ),
+      [
+        ...changed.map((k) =>
+          newlyAnswered.includes(k as PolicyField) ? `${LABEL[k]}: ${showVal(k, next)}` : `${LABEL[k]}: ${showVal(k, p)} → ${showVal(k, next)}`,
+        ),
+        ...(moved.log ? [moved.log] : []),
+      ],
       chosen,
     )
   }
@@ -195,10 +199,9 @@ function InfoForm({ profile: p, known, status, setStatus, onSave }: FormProps) {
           <h3>You</h3>
           <div className="stack">
             <div className="fields">
-              {num('age', '', 'yrs')}
               {num('income', '$')}
+              {num('years', '', 'yrs')}
             </div>
-            {num('years', '', 'yrs')}
             <YearsNote profile={p} />
           </div>
         </div>
@@ -231,7 +234,10 @@ function InfoForm({ profile: p, known, status, setStatus, onSave }: FormProps) {
               {num('group', '$')}
               {num('policies', '$')}
             </div>
-            {num('savings', '$')}
+            <div className="fields">
+              {num('savings', '$')}
+              {num('monthlyBudget', '$', '/mo')}
+            </div>
           </div>
         </div>
         <div className="card pad">
@@ -327,8 +333,80 @@ function AccountSettings() {
           you a link to set one.
         </p>
       )}
+      <DeleteAccount hasPassword={account.hasPassword} />
     </div>
   )
+}
+
+/* Delete the account and its saved answers, after a second step (and the password, if it has one). */
+function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
+  const { deleteAccount } = useApp()
+  const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (busy) return
+    if (hasPassword && !password) return setError('Enter your password to confirm.')
+    setBusy(true)
+    const result = await deleteAccount(hasPassword ? password : null)
+    setBusy(false)
+    if (!result.ok) setError(result.error)
+  }
+
+  return (
+    <div className="stack account-form">
+      <h3>Your saved answers</h3>
+      <p className="small flush">
+        Your answers are saved to your account so you can pick up on any device. We keep them until you delete your account, and
+        delete accounts that haven't been signed in to for 180 days. They're never used for anything but your estimate.
+      </p>
+      {open ? (
+        <form className="stack danger-zone" onSubmit={submit} noValidate>
+          <p className="small flush">
+            This permanently deletes your account, your saved answers and change log, and any callback requests you sent while
+            signed in. It can't be undone.
+          </p>
+          {hasPassword && (
+            <div className="field">
+              <label htmlFor="deletePass">Your password</label>
+              <div className="in">
+                <input id="deletePass" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              </div>
+            </div>
+          )}
+          <div className="err" role="alert">
+            {error}
+          </div>
+          <div className="row-actions">
+            <button className="btn danger" type="submit" disabled={busy}>
+              {busy ? 'Deleting…' : 'Delete permanently'}
+            </button>
+            <button className="btn ghost" type="button" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button className="btn ghost" type="button" onClick={() => setOpen(true)}>
+          Delete my account and answers
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** How a save moved the starting point: a sentence for the status line, and a change-log entry when it moved. */
+function movement(before: number, after: number): { sentence: string; log: string | null } {
+  if (before === after) return { sentence: `Your starting point stays at ${fmt(after)}.`, log: null }
+  const diff = after - before
+  const way = diff > 0 ? 'up' : 'down'
+  return {
+    sentence: `Your starting point went from ${fmt(before)} to ${fmt(after)} (${way} ${fmt(Math.abs(diff))}).`,
+    log: `Starting point: ${fmt(before)} → ${fmt(after)} (${way} ${fmt(Math.abs(diff))})`,
+  }
 }
 
 /** Explains when the estimate uses more years than entered, so support lasts until the youngest turns 18. */

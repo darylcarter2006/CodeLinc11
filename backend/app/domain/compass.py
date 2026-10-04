@@ -22,8 +22,10 @@ YesNo = Literal["yes", "no"]
 
 DEPS: tuple[str, ...] = ("partner", "kids", "relative", "none")
 COLLEGES: tuple[str, ...] = ("public", "half", "none")
-MONEY_FIELDS: tuple[str, ...] = ("income", "mortgage", "otherDebt", "group", "policies", "savings")
-INT_FIELDS: tuple[str, ...] = ("children", "youngest", "age", "years", "mortgageYears")
+MONEY_FIELDS: tuple[str, ...] = (
+    "income", "mortgage", "otherDebt", "group", "policies", "savings", "monthlyBudget",
+)  # fmt: skip
+INT_FIELDS: tuple[str, ...] = ("children", "youngest", "years", "mortgageYears")
 # Coverage-type preferences and the values each may take (front end: domain/profile.ts).
 POLICY_CHOICES: dict[str, tuple[str, ...]] = {
     "coverFor": ("period", "lifelong"),
@@ -62,8 +64,8 @@ POLICY_REASON: dict[str, dict[str, str]] = {
 
 # Every profile field, in the front end's order.
 FIELDS: tuple[str, ...] = (
-    "deps", "children", "youngest", "age", "income", "years", "mortgage",
-    "mortgageYears", "otherDebt", "college", "group", "policies", "savings",
+    "deps", "children", "youngest", "income", "years", "mortgage",
+    "mortgageYears", "otherDebt", "college", "group", "policies", "savings", "monthlyBudget",
     *POLICY_CHOICES,
 )  # fmt: skip
 MAX_INT = 120
@@ -89,7 +91,6 @@ class CompassProfile(BaseModel):
     deps: list[Dep] = Field(default_factory=list, max_length=4)
     children: Small = 0
     youngest: Small = 0
-    age: Small = 0
     income: Money = 0
     years: Small = 0
     mortgage: Money = 0
@@ -99,6 +100,8 @@ class CompassProfile(BaseModel):
     group: Money = 0
     policies: Money = 0
     savings: Money = 0
+    # What they could comfortably spend on coverage each month; 0 means not sure.
+    monthlyBudget: Money = 0
     # Coverage-type preferences; None means not answered (the browser omits those).
     coverFor: CoverFor | None = None
     budget: Budget | None = None

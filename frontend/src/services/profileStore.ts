@@ -1,4 +1,4 @@
-import { blankProfile, blankSaved, type ChangeLogEntry, type SavedProfile } from '../domain/profile'
+import { FLOW, blankProfile, blankSaved, type ChangeLogEntry, type SavedProfile } from '../domain/profile'
 import type { PolicyType } from '../domain/policy'
 import { requestJson } from './http'
 import { storage } from './storage'
@@ -32,11 +32,23 @@ const MAX_STEPS = 20
 
 export const blankState = (): StoredState => ({ saved: blankSaved(), log: [], steps: {}, policySeen: null })
 
-/** Fill in fields added since the state was saved; `known` still says which are unanswered. */
+const FIELDS: string[] = FLOW.map((f) => f.k)
+
+/**
+ * Fill in fields added since the state was saved (`known` still says which are unanswered), and
+ * drop answers to questions the app no longer asks.
+ */
 function normalize(stored: Partial<StoredState>): StoredState {
   const saved = stored.saved
   return {
-    saved: saved ? { ...blankSaved(), ...saved, p: { ...blankProfile(), ...saved.p } } : blankSaved(),
+    saved: saved
+      ? {
+          ...blankSaved(),
+          ...saved,
+          p: Object.fromEntries(Object.entries({ ...blankProfile(), ...saved.p }).filter(([k]) => k in blankProfile())) as unknown as SavedProfile['p'],
+          known: (saved.known ?? []).filter((k) => FIELDS.includes(k)),
+        }
+      : blankSaved(),
     log: stored.log ?? [],
     steps: stored.steps ?? {},
     policySeen: stored.policySeen ?? null,

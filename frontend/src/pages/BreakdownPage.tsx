@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Legend, StackedBar } from '../components/StackedBar'
 import { NumberInfo, WithTerms } from '../components/Tip'
 import { TradeoffCards } from '../components/TradeoffCard'
-import { explainInPlace, explainLeft, explainNeed, explainRange, explainTerm } from '../domain/explain'
+import { explainDrivers, explainInPlace, explainLeft, explainNeed, explainRange, explainTerm } from '../domain/explain'
 import { fmt, short } from '../domain/format'
 import { compute, tradeoffs, type Calculation } from '../domain/needs'
 import type { Profile } from '../domain/profile'
@@ -145,6 +145,7 @@ function Headline({ p, c, isExample }: { p: Profile; c: Calculation; isExample: 
           Your existing coverage and savings ({fmt(c.existing)}) meet the estimated need of {fmt(c.total)}. Revisit this
           after big life changes.
         </p>
+        <p className="estimate-note">An estimate from your answers, not financial advice or a quote.</p>
       </div>
     )
   return (
@@ -162,6 +163,10 @@ function Headline({ p, c, isExample }: { p: Profile; c: Calculation; isExample: 
             </b>
             <NumberInfo label="the range" explanation={explainRange(c)} testId="info-range" />
           </div>
+          <p className="estimate-note" data-testid="estimate-note">
+            An estimate from your answers, not financial advice or a quote. It's a range because it doesn't model
+            inflation, investment returns, taxes, or changes ahead.
+          </p>
         </div>
         <div className="facts">
           <span>
@@ -175,6 +180,16 @@ function Headline({ p, c, isExample }: { p: Profile; c: Calculation; isExample: 
           </span>
         </div>
       </div>
+      {c.drivers.length > 0 && (
+        <div className="drivers spaced" data-testid="drivers">
+          <h3>What moves your amount most</h3>
+          <ul>
+            {explainDrivers(p, c).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="note teal spaced">
         <strong>You're not starting from zero.</strong> What you already have covers about{' '}
         {Math.round((c.existing / c.total) * 100)}% of the need. This estimate is a starting point you can adjust, not a
