@@ -89,4 +89,17 @@ describe('Talk to a licensed Lincoln Financial representative', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Talk to a licensed Lincoln Financial representative' })).toHaveFocus()
   })
+
+  it('keeps keyboard focus inside the dialog', async () => {
+    const { user } = setup(201)
+    await openDialog(user)
+    const close = screen.getByRole('button', { name: 'Close' })
+    const cancel = screen.getByRole('button', { name: 'Cancel' })
+
+    cancel.focus()
+    await user.tab()
+    expect(close).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(cancel).toHaveFocus()
+  })
 })

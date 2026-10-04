@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { fmt } from '../domain/format'
 import { httpSupport, type BestTime, type CallbackRequest, type ContactMethod, type SupportService } from '../services/support'
 
@@ -21,6 +21,25 @@ const TIMES: [BestTime, string][] = [
 const TOPIC_MAX = 1000
 
 type Stage = 'form' | 'sending' | 'sent' | 'unavailable'
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/** Keep Tab and Shift+Tab inside the dialog so keyboard users can't land on the page behind it. */
+function trapTab(e: ReactKeyboardEvent<HTMLDivElement>) {
+  if (e.key !== 'Tab') return
+  const items = [...e.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE)]
+  if (!items.length) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  const active = document.activeElement
+  if (e.shiftKey && (active === first || !e.currentTarget.contains(active))) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}
 
 /* "Talk to a licensed Lincoln Financial representative": a callback request form. A person follows up; nothing here is a live agent. */
 export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, service = httpSupport }: Props) {
@@ -91,7 +110,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal card" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div className="modal card" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={trapTab}>
         <div className="modal-head">
           <div>
             <div className="eyebrow">Prefer a person?</div>
