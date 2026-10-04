@@ -22,7 +22,7 @@ const TOPIC_MAX = 1000
 
 type Stage = 'form' | 'sending' | 'sent' | 'unavailable'
 
-/* "Talk to a licensed professional": a callback request form. A person follows up; nothing here is a live agent. */
+/* "Talk to a licensed Lincoln Financial representative": a callback request form. A person follows up; nothing here is a live agent. */
 export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, service = httpSupport }: Props) {
   const titleId = useId()
   const [name, setName] = useState(defaultName)
@@ -95,7 +95,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
         <div className="modal-head">
           <div>
             <div className="eyebrow">Prefer a person?</div>
-            <h2 id={titleId}>Talk to a licensed professional</h2>
+            <h2 id={titleId}>Talk to a licensed Lincoln Financial representative</h2>
           </div>
           <button className="linkish" type="button" onClick={onClose}>
             Close
@@ -105,7 +105,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
         {stage === 'sent' && (
           <div className="stack" role="status">
             <p className="flush">
-              <strong>Request sent.</strong> Thanks, {name.trim()}. A licensed professional will reach out by {method}{' '}
+              <strong>Request sent.</strong> Thanks, {name.trim()}. A licensed Lincoln Financial representative will reach out by {method}{' '}
               at <b>{contact.trim()}</b>
               {timeText}.
             </p>
@@ -135,7 +135,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
         {(stage === 'form' || stage === 'sending') && (
           <form className="stack" onSubmit={submit} noValidate>
             <p className="muted small flush">
-              If the assistant isn't answering what you need, ask for a licensed professional to follow up with you.
+              If the assistant isn't answering what you need, ask for a licensed Lincoln Financial representative to follow up with you.
             </p>
             <div className="field">
               <label htmlFor="cb-name">Your name</label>
