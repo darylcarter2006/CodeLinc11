@@ -287,3 +287,12 @@ tr.sub td { color: var(--teal); font-weight: 600; }
   .progress span { transition: width 0.3s; }
   @keyframes rise { from { transform: translateY(4px); } to { transform: none; } }
 }
+
+/* Explanations: insurance terms (dotted underline) and "i" buttons on key numbers (components/Tip.tsx) */
+.gloss-term { display: inline; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: inherit; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: help; }
+.gloss-term:hover { text-decoration-style: solid; }
+.info { display: inline-grid; place-items: center; width: 1.125rem; height: 1.125rem; margin-left: 4px; padding: 0; border: 1px solid currentColor; border-radius: 50%; background: none; color: var(--muted); font: 700 0.6875rem/1 var(--display); vertical-align: middle; cursor: help; }
+.info:hover { color: var(--brand); }
+.figure .info { vertical-align: super; }
+.tip-pop { position: fixed; z-index: 40; padding: 10px 12px; border-radius: var(--r-sm); background: var(--ink); color: var(--ground); font: 400 0.8125rem/1.45 var(--sans); letter-spacing: normal; text-align: left; text-transform: none; white-space: normal; box-shadow: 0 4px 16px rgba(20, 38, 64, 0.25); }
+.tip-pop b { font-weight: 700; }
