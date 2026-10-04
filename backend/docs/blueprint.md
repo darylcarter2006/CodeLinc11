@@ -450,13 +450,13 @@ Retain only the last 10 messages per session for the AI context window. The clea
 
 ### Local development
 
-The `docker-compose.yml` runs a `postgres:16-alpine` container on port `5432`. No credentials are needed beyond the local compose password. Apply migrations with `alembic upgrade head` against `DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/insurance`.
+The `docker-compose.yml` runs a `postgres:18-alpine` container (the same major version as RDS) on port `5432`. No credentials are needed beyond the local compose password. Apply migrations with `alembic upgrade head` against `DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/insurance`.
 
 ```yaml
 # docker-compose.yml (database service)
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: insurance
       POSTGRES_USER: insurance
@@ -593,7 +593,7 @@ Never deploy directly to demo without a passing smoke test in dev. Keep demo env
 ```yaml
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     env:
       POSTGRES_DB: insurance_test
       POSTGRES_USER: insurance
