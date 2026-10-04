@@ -66,8 +66,35 @@ describe('compute rounding and term edges', () => {
   })
 
   it('uses mortgage years only when there is a mortgage', () => {
-    expect(compute({ ...EXAMPLE, years: 8, mortgageYears: 26 }).term).toBe(30)
-    expect(compute({ ...EXAMPLE, years: 8, mortgage: 0, mortgageYears: 26 }).term).toBe(10)
+    expect(compute({ ...EXAMPLE, youngest: 15, years: 8, mortgageYears: 26 }).term).toBe(30)
+    expect(compute({ ...EXAMPLE, youngest: 15, years: 8, mortgage: 0, mortgageYears: 26 }).term).toBe(10)
+  })
+})
+
+describe("years of support reach the youngest child's 18th birthday", () => {
+  const family = (youngest: number, years: number): Profile => ({ ...EXAMPLE, youngest, years, mortgage: 0 })
+
+  it('uses the years until the youngest turns 18 when more than entered, and says so', () => {
+    const c = compute(family(2, 15))
+    expect(c.years).toBe(16)
+    expect(c.yearsEntered).toBe(15)
+    expect(c.lines[0].amt).toBe(78000 * 0.75 * 16)
+    expect(c.lines[0].how).toBe('75% of $78,000 × 16 years (until your youngest turns 18; you entered 15)')
+  })
+
+  it('keeps the entered years when they already reach 18 or the youngest is grown', () => {
+    expect(compute(family(3, 19)).years).toBe(19)
+    expect(compute(family(20, 15)).years).toBe(15)
+    expect(compute(family(20, 15)).lines[0].how).toBe('75% of $78,000 × 15 years')
+  })
+
+  it('only applies when children are among the dependents', () => {
+    expect(compute({ ...family(2, 15), deps: ['partner'] }).years).toBe(15)
+    expect(compute({ ...family(2, 15), deps: ['none'] }).years).toBe(0)
+  })
+
+  it('feeds the longer window into the suggested term', () => {
+    expect(compute(family(0, 5)).term).toBe(20)
   })
 })
 

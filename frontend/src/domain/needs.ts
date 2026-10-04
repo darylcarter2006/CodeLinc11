@@ -10,6 +10,8 @@ export const ASSUMPTIONS = {
 }
 
 const STEP = 25000
+/** Income support covers at least the years until the youngest child reaches this age. */
+export const ADULT_AGE = 18
 const TERMS = [10, 15, 20, 25, 30]
 
 export type LineKey = 'c1' | 'c2' | 'c3' | 'c4'
@@ -29,7 +31,10 @@ export interface Calculation {
   suggested: number
   low: number
   high: number
+  /** Years of income support used: the entered years, or more to reach the youngest's 18th birthday. */
   years: number
+  /** Years the user entered (0 when no one relies on their income). */
+  yearsEntered: number
   kids: number
   term: number
   termNeed: number
@@ -39,14 +44,21 @@ const roundUp = (v: number) => Math.ceil(v / STEP) * STEP
 
 export function compute(p: Profile): Calculation {
   const kids = hasDep(p, 'kids') ? p.children : 0
-  const years = hasDep(p, 'none') ? 0 : p.years
+  const yearsEntered = hasDep(p, 'none') ? 0 : p.years
+  // Support lasts at least until the youngest child turns 18, and the explanation says when that applies.
+  const untilAdult = kids > 0 ? Math.max(0, ADULT_AGE - p.youngest) : 0
+  const years = Math.max(yearsEntered, untilAdult)
+  const extended = years > yearsEntered
   const perChild = ASSUMPTIONS.college[p.college || 'none']
   const lines: Line[] = [
     {
       key: 'c1',
       label: 'Income replacement',
       amt: p.income * ASSUMPTIONS.replace * years,
-      how: years ? `75% of ${fmt(p.income)} × ${years} years` : 'No one relies on your income, so none is needed',
+      how: years
+        ? `75% of ${fmt(p.income)} × ${years} years` +
+          (extended ? ` (until your youngest turns ${ADULT_AGE}; you entered ${yearsEntered})` : '')
+        : 'No one relies on your income, so none is needed',
     },
     {
       key: 'c2',
@@ -76,6 +88,7 @@ export function compute(p: Profile): Calculation {
     low: Math.floor((gap * 0.85) / STEP) * STEP,
     high: roundUp(gap * 1.15),
     years,
+    yearsEntered,
     kids,
     term,
     termNeed,
