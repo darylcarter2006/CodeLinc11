@@ -65,7 +65,8 @@ describe('full flow', () => {
 
     await user.click(screen.getByRole('link', { name: 'Dashboard' }))
     expectTiles({ ...EXAMPLE, income: 95000 })
-  })
+    // Types all 13 onboarding answers, so it needs more than the 5s default on slower machines.
+  }, 20_000)
 
   it('example mode: breakdown "Why?" opens Chat with a standard answer', async () => {
     const user = userEvent.setup()
