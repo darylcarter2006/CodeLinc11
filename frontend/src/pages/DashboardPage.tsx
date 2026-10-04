@@ -85,7 +85,9 @@ export function DashboardPage() {
                   <span className="amt">{fmt(amt)}</span>
                   <span className="dt">
                     <span className={`pill ${tone}`}>{pill}</span>
-                    <WithTerms text={detail} />
+                    <span>
+                      <WithTerms text={detail} />
+                    </span>
                   </span>
                 </div>
               ))}
