@@ -95,8 +95,10 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
 
   const logIn = useCallback<AppState['logIn']>((email, password) => startSession(auth.logIn(email, password)), [auth, startSession])
 
+  // isNew (a different account than this browser last saw) starts a fresh profile, so one
+  // person's saved answers are never shown to another.
   const signInWithGoogle = useCallback<AppState['signInWithGoogle']>(
-    (credential) => startSession(auth.signInWithGoogle(credential)),
+    async (credential) => startSession(await auth.signInWithGoogle(credential)),
     [auth, startSession],
   )
 

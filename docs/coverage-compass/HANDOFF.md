@@ -24,7 +24,7 @@ Coverage Compass is a conversational life insurance needs analyzer built for the
 - **Prototype auth is fake.** It stores name and email in `localStorage` and never stores passwords. If the repo has real auth, use it. If not, keep the sign-up/log-in UI behind an `auth` service interface so a real provider can be dropped in later, and **never store passwords on the client**.
 - **Persistence behind an interface.** The prototype uses `localStorage` keys `cc-account`, `cc-session`, `cc-profile`, `cc-log` and `cc-steps`. Put profile reads and writes behind a `profileStore` (or the repo's equivalent) so it can move to the backend.
 - **Light theme only.** No dark mode.
-- **Original brand.** Don't use the Lincoln Financial logo or name in the UI. The palette is inspired by the challenge materials. The footer note stays.
+- **Lincoln Financial branding.** The team has been given permission to use the Lincoln Financial logo and name in the UI (updated October 3, 2026; this replaces the earlier "original brand only" rule). Use only official logo files, unaltered: no redrawing, recoloring or stretching. The browser-tab icons in `frontend/public/` are cut from the official portrait mark. The palette is inspired by the challenge materials. The footer note stays.
 - Keep code minimal: no features beyond this spec. Comments go on major sections only, one to two sentences each.
 
 ## User flow

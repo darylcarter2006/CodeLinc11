@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     repository_backend: Literal["memory", "postgres"] = "memory"
     ai_provider: Literal["stub", "bedrock"] = "stub"
     ai_timeout_seconds: float = 15.0
+    # Per client IP, across /v1/ai/extract and /v1/ai/chat combined.
+    ai_rate_limit_per_minute: int = Field(default=20, ge=1)
 
     # --- PostgreSQL (required when repository_backend = "postgres") ---
     # Full async DSN: postgresql+asyncpg://user:pass@host:5432/dbname
@@ -34,6 +36,15 @@ class Settings(BaseSettings):
     # CA bundle for verifying the server certificate (RDS: global-bundle.pem).
     # Leave unset for local Docker Postgres.
     db_ssl_root_cert: str | None = None
+
+    # --- Google sign-in (accounts) ---
+    # OAuth "Web application" client ID from Google Cloud Console. Not a secret, but unset
+    # means Google sign-in is off and /v1/auth/google returns 503.
+    google_client_id: str | None = None
+    # Optional: only accept accounts from this Google Workspace domain (e.g. "example.com").
+    google_hosted_domain: str | None = None
+    account_token_ttl_hours: int = Field(default=168, ge=1, le=24 * 30)
+    auth_rate_limit_per_minute: int = Field(default=10, ge=1)
 
     # Bedrock — only required when ai_provider == "bedrock"
     bedrock_model_id: str = "us.amazon.nova-2-lite-v1:0"
@@ -71,6 +82,20 @@ class Settings(BaseSettings):
                 "(e.g. postgresql+asyncpg://user:pass@host:5432/dbname)"
             )
         return value
+
+    @field_validator("google_client_id", "google_hosted_domain", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("google_client_id")
+    @classmethod
+    def _client_id_shape(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip().endswith(".apps.googleusercontent.com"):
+            raise ValueError(
+                "GOOGLE_CLIENT_ID should look like <numbers>-<id>.apps.googleusercontent.com"
+            )
+        return value.strip() if value is not None else None
 
     @field_validator("db_ssl_root_cert")
     @classmethod

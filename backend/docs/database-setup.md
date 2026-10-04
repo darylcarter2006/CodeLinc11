@@ -7,6 +7,15 @@ Run every command from the `backend/` folder.
 
 ## Option A: local Postgres in Docker
 
+Local Docker and CI run PostgreSQL 18, the same major version as RDS.
+
+If you created the local database before the switch from 16 to 18, its data volume
+won't start under 18. Recreate it once (this deletes local data only, never RDS):
+
+```bash
+docker compose down -v
+```
+
 ```bash
 docker compose up -d --wait db      # --wait: return only once Postgres is ready
 export DATABASE_URL=postgresql+asyncpg://insurance:localdev@localhost:5432/insurance

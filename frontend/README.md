@@ -49,10 +49,44 @@ Services and needs an OAuth client ID:
 
 Without a client ID the button still shows, and explains that Google sign-in isn't set up yet.
 
-The browser reads the Google token for name and email only (checking issuer, audience, expiry and
-verified email) and then discards it. **It does not verify the token's signature**, so this is
-prototype-grade. When real accounts land, send the token to the backend and verify it there
-before trusting it.
+**With the backend running**, the token goes to `POST /v1/auth/google`, which verifies Google's
+signature (plus audience, issuer, expiry and verified email), creates or finds the user, and
+returns an account token. That token is stored in this browser and revoked on sign-out. The backend
+needs the same client ID in `backend/.env` as `GOOGLE_CLIENT_ID`; see
+[../backend/docs/google-oauth-setup.md](../backend/docs/google-oauth-setup.md).
+
+**Without a backend** (404, unreachable, or the backend has no client ID), the browser falls back to
+reading the token's name and email itself (checking issuer, audience, expiry and verified email,
+but **not** the signature). That creates a browser-only account, just like the email form, and is
+never trusted by the server. If the backend actively rejects a token (401), there is no fallback.
+
+## Deploying to AWS Amplify
+
+The build is defined in [`../amplify.yml`](../amplify.yml) (repo root): Node 22, `npm ci`,
+`npm run build`, publishing `frontend/dist`. Someone with access to the team's AWS account and
+admin rights on the GitHub repo does this once:
+
+1. **AWS Console → Amplify → Create new app → GitHub.** Authorize Amplify, pick
+   `darylcarter2006/CodeLinc11` and the `main` branch.
+2. Tick **"My app is a monorepo"** and set the app root to **`frontend`**. Amplify picks up
+   `amplify.yml` automatically.
+3. Under **Environment variables**, add:
+   - `VITE_API_BASE_URL`: the deployed backend's URL, e.g. `https://api.example.com`
+     (no trailing slash). Leave it unset until the backend is deployed; the app still works
+     with the local parser and standard answers.
+   - `VITE_GOOGLE_CLIENT_ID`: the Google OAuth client ID (see "Google sign-in").
+4. **Save and deploy.**
+5. **Hosting → Rewrites and redirects → Manage redirects → Open text editor**, paste the
+   contents of [`amplify-rewrites.json`](amplify-rewrites.json), and save. This makes links like
+   `/dashboard` work on refresh. It deliberately skips `/v1/...`, so API calls are never answered
+   with the app's HTML.
+6. After the first deploy, copy the app's URL (`https://main.<id>.amplifyapp.com`) and:
+   - add it to the Google OAuth client's **Authorized JavaScript origins**;
+   - set the backend's `CORS_ORIGINS` to it (only needed when `VITE_API_BASE_URL` points to a
+     backend on another domain).
+
+Every push to `main` redeploys. `VITE_*` values are baked in at build time, so redeploy after
+changing them. Never put secrets in them: they end up in the public JavaScript.
 
 ## Backend AI contract (to be built on the FastAPI side)
 
@@ -98,6 +132,35 @@ the handoff (section 6):
 Response: the answer as a streamed `text/plain` body (chunks are appended as they arrive).
 Return **429** when rate limited; the UI shows "That's a lot of questions at once."
 
+## Talk to a licensed Lincoln Financial representative
+
+The Chat tab has a **Talk to a licensed Lincoln Financial representative** link for users the assistant isn't helping.
+It opens a short callback-request form (name, email or phone, best time, what they need help with,
+and an opt-in summary of their estimate and recent questions). Nothing in the app pretends to be a
+live agent: a person follows up later.
+
+Requests go to `POST /v1/support/callback-requests` (not built yet). Until it exists, the form says
+"Callback requests aren't connected yet, so nothing was sent." The front end treats 404, 501, 503
+and network errors as not connected, 422 as invalid input, and anything else as a retryable failure.
+
+Request body (`summary` appears only when the user ticks "Share my estimate..."):
+
+```json
+{
+  "name": "Maya", "contactMethod": "email", "contact": "maya@example.com",
+  "bestTime": "morning", "topic": "Should I count my work coverage?",
+  "summary": {
+    "estimate": { "total": 1584500, "existing": 176000, "gap": 1408500, "suggested": 1425000, "termYears": 30 },
+    "recentQuestions": ["Term or whole life for me?"]
+  }
+}
+```
+
+`contactMethod` is `email` or `phone`; `bestTime` is `any`, `morning`, `afternoon` or `evening`;
+`topic` is at most 1,000 characters. Respond **201** on success. Validate everything server-side,
+reject anything that looks like an SSN or account number, and route requests to whoever staffs them
+(an inbox, CRM or scheduling tool).
+
 ## Layout
 
 See [FILE_GUIDE.md](FILE_GUIDE.md) for a description of every file.
@@ -111,9 +174,3 @@ src/
   pages/       Auth, Onboarding, Dashboard, Breakdown, MyInfo, Chat
   test/        Vitest setup and the end-to-end flow test
 ```
-
-## Leftover files to delete
-
-These belong to the earlier Planner UI, are no longer imported, and can be removed:
-`src/api/`, `src/session/`, `src/utils/`, `src/pages/{HomePage,PlannerPage,ProfilePage,LearnPage,NotFoundPage}.tsx`,
-and `src/components/{AssessmentPanel,ChatPanel,ExpenseEditor,QuestionInput}.tsx`.

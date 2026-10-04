@@ -1,5 +1,14 @@
 """AI adapter interface.
 
+The model may only *propose* candidate profile values, *phrase* questions, and *explain*
+results. It never calculates, and everything it returns is validated as untrusted input
+before use.
+
+Two layers:
+* ``extract_candidates`` / ``phrase_question`` serve the session API's question flow.
+* ``generate`` / ``stream`` are plain text-in, text-out calls used by the Coverage Compass
+  endpoints. Prompts and validation live in ``app.services.compass_ai``; a provider only
+  moves text. Providers without a model keep the defaults, which raise ModelUnavailable.
 The model may only *propose* candidate profile values, *phrase* questions, and
 *compose* the final assistant reply. It never calculates; all numbers come from the
 backend calculator, and everything the model returns is validated before use.
@@ -8,11 +17,35 @@ backend calculator, and everything the model returns is validated before use.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.questions import Question
+
+
+class ModelUnavailable(Exception):
+    """No model is configured, or the provider cannot be reached."""
+
+
+class ModelThrottled(Exception):
+    """The provider is rate limiting us."""
+
+
+class ModelFailed(Exception):
+    """The provider returned an error for this request."""
+
+
+# "fast": a low-cost model for short structured tasks; "smart": a stronger model for chat.
+ModelTier = Literal["fast", "smart"]
+
+
+@dataclass(frozen=True)
+class ChatMessage:
+    role: Literal["user", "assistant"]
+    content: str
 
 
 class CandidateUpdate(BaseModel):
@@ -79,6 +112,18 @@ class AIAdapter(ABC):
     @abstractmethod
     async def phrase_question(self, question: Question, context: ExtractionContext) -> str | None:
         """Optional friendlier wording. Return None to use the approved copy."""
+
+    async def generate(
+        self, system: str, messages: list[ChatMessage], *, tier: ModelTier, max_tokens: int
+    ) -> str:
+        """Return one complete reply. Raises ModelUnavailable/ModelThrottled/ModelFailed."""
+        raise ModelUnavailable()
+
+    def stream(
+        self, system: str, messages: list[ChatMessage], *, tier: ModelTier, max_tokens: int
+    ) -> AsyncIterator[str]:
+        """Yield the reply in chunks. Raises the same errors as ``generate``."""
+        raise ModelUnavailable()
 
     @abstractmethod
     async def generate_response(self, context: ResponseContext) -> str | None:

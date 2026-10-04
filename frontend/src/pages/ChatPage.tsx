@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { CallbackDialog } from '../components/CallbackDialog'
 import { AskForm, ChatLog, Chips, type Bubble } from '../components/ChatLog'
 import { fmt, short } from '../domain/format'
 import { compute, laddering } from '../domain/needs'
@@ -11,6 +12,7 @@ export function ChatPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const c = compute(p)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   // Ask a question handed over from the Breakdown tab once, then clear it so a reload doesn't re-ask.
   const handled = useRef<string | null>(null)
@@ -83,9 +85,26 @@ export function ChatPage() {
           <div className="dock">
             <AskForm placeholder="Ask anything about your coverage" label="Ask a question" button="Ask" disabled={chatBusy} onSend={askChat} />
             <Chips items={suggestions} onPick={askChat} disabled={chatBusy} />
+            <p className="human-help">
+              Not finding what you need?{' '}
+              <button className="linkish" type="button" onClick={() => setHelpOpen(true)}>
+                Talk to a licensed Lincoln Financial representative
+              </button>
+            </p>
           </div>
         </section>
       </div>
+      {helpOpen && (
+        <CallbackDialog
+          onClose={() => setHelpOpen(false)}
+          defaultName={isExample ? '' : (account?.name ?? '')}
+          defaultEmail={isExample ? '' : (account?.email ?? '')}
+          summary={{
+            estimate: { total: c.total, existing: c.existing, gap: c.gap, suggested: c.suggested, termYears: c.term },
+            recentQuestions: chat.filter((m) => m.role === 'user').slice(-5).map((m) => m.text),
+          }}
+        />
+      )}
     </>
   )
 }
