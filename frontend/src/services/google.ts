@@ -100,22 +100,37 @@ export type Exchange =
   /** The backend looked at the token and said no, or can't sign in right now. Never fall back. */
   | { kind: 'error'; message: string }
 
-// 404/501: endpoint not deployed. 0: backend unreachable. 503 auth_unavailable: no client ID set.
-const UNAVAILABLE = [0, 404, 501]
+// Error codes our backend returns when sign-in itself is off or the backend can't be reached.
+const NO_BACKEND_CODES = ['network_error', 'not_found', 'auth_unavailable']
+
+/**
+ * Only our own backend can reject a token, and it always answers with its JSON error envelope
+ * (which gives HttpError a real `code`). Anything else, such as a static host's 403/404/405 page
+ * or a proxy's HTML, means no backend sign-in is deployed here, so the browser-only path is used.
+ */
+function isOurBackend(e: HttpError): boolean {
+  return e.code !== 'http_error' && !NO_BACKEND_CODES.includes(e.code)
+}
+
+const isSignInResult = (v: unknown): v is SignInResult => {
+  const r = v as Partial<SignInResult> | null
+  return typeof r?.access_token === 'string' && typeof r.expires_at === 'string' && typeof r.user?.email === 'string'
+}
 
 /** Exchange Google's credential for our account token. */
 export async function exchangeCredential(credential: string): Promise<Exchange> {
+  let body: unknown
   try {
     const res = await postJson('/auth/google', { credential })
-    return { kind: 'ok', result: (await res.json()) as SignInResult }
+    body = await res.json().catch(() => null)
   } catch (e) {
-    if (e instanceof HttpError) {
-      if (UNAVAILABLE.includes(e.status) || e.code === 'auth_unavailable') return { kind: 'unavailable' }
-      if (e.status === 503) return { kind: 'error', message: "We couldn't reach Google to check your sign-in. Try again in a moment." }
-      if (e.status === 429) return { kind: 'error', message: 'Too many sign-in attempts. Wait a minute and try again.' }
-    }
+    if (!(e instanceof HttpError) || !isOurBackend(e)) return { kind: 'unavailable' }
+    if (e.status === 503) return { kind: 'error', message: "We couldn't reach Google to check your sign-in. Try again in a moment." }
+    if (e.status === 429) return { kind: 'error', message: 'Too many sign-in attempts. Wait a minute and try again.' }
     return { kind: 'error', message: "Google sign-in didn't work. Try again, or use your email instead." }
   }
+  // A 200 that isn't a sign-in result came from something other than our backend.
+  return isSignInResult(body) ? { kind: 'ok', result: body } : { kind: 'unavailable' }
 }
 
 /** Revoke the account token on the server. Best effort: sign-out continues locally regardless. */

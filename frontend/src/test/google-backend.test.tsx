@@ -64,6 +64,12 @@ describe('backend-verified Google sign-in', () => {
 
   it.each([
     ['the endpoint is missing (404)', async () => new Response(null, { status: 404 })],
+    // What static hosts such as Amplify/CloudFront answer to a POST when no backend is deployed.
+    ['a static host refuses the POST (403)', async () => new Response('<Error>AccessDenied</Error>', { status: 403, headers: { 'Content-Type': 'application/xml' } })],
+    ['a static host rejects the method (405)', async () => new Response('<html>Method Not Allowed</html>', { status: 405, headers: { 'Content-Type': 'text/html' } })],
+    ['a static host serves the app page (200 HTML)', async () => new Response('<!doctype html><html></html>', { status: 200, headers: { 'Content-Type': 'text/html' } })],
+    ['something answers 200 JSON that is not a sign-in result', async () => json({ ok: true })],
+    ['an older backend without sign-in (404 envelope)', async () => apiError(404, 'not_found')],
     ['Google sign-in is not configured (503 auth_unavailable)', async () => apiError(503, 'auth_unavailable')],
     [
       'the backend is unreachable',
