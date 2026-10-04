@@ -35,6 +35,18 @@ npm run build        # tsc -b && vite build
   The current implementations use `localStorage` and never store passwords.
 - Light theme only. Money uses full dollars wherever it's explained, compact ($1.43M) on tiles.
 
+## Display settings (accessibility)
+
+The **Aa Display settings** button in the top bar (on every page, including sign-in) lets people:
+
+- make all text **Large** (112.5%) or **Larger** (125%);
+- turn on **high contrast**: darker text, borders and chart colors, and a heavier focus ring;
+- switch to an **easier-to-read font** ([Atkinson Hyperlegible](https://fonts.google.com/specimen/Atkinson+Hyperlegible), loaded only when chosen) with extra letter, word and line spacing.
+
+Choices are saved in the browser (`cc-preferences`) and applied before the first paint. They work
+as data attributes on `<html>` (`data-text`, `data-contrast`, `data-font`) that `index.css` reads.
+All font sizes are in `rem`, so keep new ones in `rem` too or they won't grow with the setting.
+
 ## Google sign-in
 
 The sign-up / log-in card has a **Sign up with Google** / **Sign in with Google** button (one button

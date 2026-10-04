@@ -41,6 +41,8 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `services/fallback.ts` | Standard, keyword-matched answers for the Chat tab when live AI isn't available. |
 | `services/support.ts` | The `SupportService` interface for "Talk to a licensed Lincoln Financial representative" callback requests, sending them to the backend and reporting whether they were received, rejected, or can't be sent yet. |
 | `services/support.test.ts` | Unit tests for how each backend response (sent, not connected, invalid, failed) is reported. |
+| `services/preferences.ts` | Display settings (text size, high contrast, easier-to-read font): loads and saves them in this browser and applies them to the page. |
+| `services/preferences.test.ts` | Unit tests for loading, saving and applying display settings. |
 | `services/storage.ts` | Safe read/write of `cc-*` keys in `localStorage` (works even if storage is blocked). |
 | `services/http.ts` | Small helper for JSON POSTs to the backend, with readable errors. Treats an HTML reply (a static host's page fallback) as "not found". |
 | `services/http.test.ts` | Unit tests for the helper: API replies, the HTML fallback, error messages and an unreachable server. |
@@ -62,6 +64,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `components/StackedBar.tsx` | Horizontal stacked bars with hover tooltips, plus the direct-labeled legend. |
 | `components/TradeoffCard.tsx` | Tradeoff cards, optionally with the Term/Whole comparison. |
 | `components/CallbackDialog.tsx` | The "Talk to a licensed Lincoln Financial representative" form: name, email or phone, best time, what they need help with, and an opt-in summary of their estimate and recent questions. Validates inline and says plainly when requests can't be sent yet. |
+| `components/AccessibilityMenu.tsx` | The "Aa Display settings" menu in the top bar: text size (Default, Large, Larger), high contrast, and an easier-to-read font. Works by keyboard and closes with Escape. |
 | `components/GoogleButton.tsx` | The "Sign up / Sign in with Google" button. Shows Google's official button when a client ID is set, otherwise a look-alike that explains Google sign-in isn't set up yet. |
 
 ## Screens (`src/pages/`)
@@ -81,7 +84,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 |---|---|
 | `src/main.tsx` | Mounts the app with the router and state provider. |
 | `src/App.tsx` | The route table. |
-| `src/index.css` | All styles, built from `design-tokens.json`. Light theme only; motion only when the user hasn't asked to reduce it. |
+| `src/index.css` | All styles, built from `design-tokens.json`. Light theme only; motion only when the user hasn't asked to reduce it. Font sizes use `rem` so the text-size setting scales them, and the display settings each have a section. |
 | `index.html` | Page title, browser-tab icons, and the Newsreader / Public Sans fonts. |
 | `public/favicon.ico`, `public/icon-192.png`, `public/apple-touch-icon.png` | Browser-tab and home-screen icons made from the Lincoln Financial portrait mark (used with the organizers' permission). |
 
@@ -91,6 +94,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 |---|---|
 | `src/test/flow.test.tsx` | End-to-end: sign up → answer every onboarding question with the local parser → confirm → dashboard tiles match `compute()` → edit income → tiles update and a log entry appears. Also example mode → "Why?" → standard answer, and an inline sign-up error. |
 | `src/test/google.test.tsx` | Google sign-in flows: not set up, a new Google user, a returning user who keeps their answers, and a rejected token. |
+| `src/test/accessibility.test.tsx` | The display settings menu: changing each setting, remembering them on the next visit, reset, and closing with Escape. |
 | `src/test/breakdown.test.tsx` | The Breakdown page when existing coverage already covers the need: it says so and shows no starting-point figure. |
 | `src/test/callback.test.tsx` | "Talk to a licensed Lincoln Financial representative" flows: inline validation, sending with and without the shared summary, the not-connected message, closing with Escape, and keeping keyboard focus inside the form. |
 | `src/test/setup.ts` | Test setup: DOM matchers and a clean page/storage between tests. |
