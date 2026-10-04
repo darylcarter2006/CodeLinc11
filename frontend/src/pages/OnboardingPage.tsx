@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AskForm, ChatLog, Chips, type Bubble } from '../components/ChatLog'
 import { applyUpdates, clean, parseLocal } from '../domain/parse'
@@ -66,9 +66,13 @@ export function OnboardingPage() {
     setBusy(false)
   }
 
+  // One transition so the confirmed profile and the new route commit together; otherwise the
+  // onboarding guard sees the confirmed profile first and sends everyone to the dashboard.
   const finish = (to: '/dashboard' | '/info') => {
-    confirmProfile()
-    navigate(to)
+    startTransition(() => {
+      confirmProfile()
+      navigate(to)
+    })
   }
 
   const steps = neededSteps(saved)

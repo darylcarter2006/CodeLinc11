@@ -47,6 +47,7 @@ def test_sign_in_returns_token_and_user(make_client: Callable[..., TestClient]) 
         "name": "Jordan Lee",
         "given_name": "Jordan",
         "picture": None,
+        "has_password": False,
     }
     assert str(user["id"]).startswith("usr_")
 

@@ -21,7 +21,11 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH
-RUN useradd --system --uid 10001 --no-create-home appuser
+# Pick up Debian security fixes released since the base image was published.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --no-create-home appuser
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /build/rds-global-bundle.pem /srv/certs/rds-global-bundle.pem
 WORKDIR /srv

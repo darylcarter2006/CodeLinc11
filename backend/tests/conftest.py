@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import os
 import uuid
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,6 +29,34 @@ class FakeClock:
         self.now += timedelta(**kwargs)
 
 
+@pytest.fixture(autouse=True)
+def _empty_test_database() -> None:
+    """With REPOSITORY_BACKEND=postgres, start every test from empty tables.
+
+    Only ever against a database on this machine: the suite refuses to touch anything else.
+    """
+    if os.environ.get("REPOSITORY_BACKEND") != "postgres":
+        return
+    url = os.environ.get("DATABASE_URL", "")
+    if urlparse(url).hostname not in ("localhost", "127.0.0.1"):
+        pytest.exit("Postgres tests run only against a local database (DATABASE_URL host).")
+    import asyncpg
+
+    async def truncate() -> None:
+        conn = await asyncpg.connect(url.replace("postgresql+asyncpg://", "postgresql://"))
+        try:
+            tables = await conn.fetch(
+                "SELECT tablename FROM pg_tables "
+                "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+            )
+            names = ", ".join(f'"{row["tablename"]}"' for row in tables)
+            await conn.execute(f"TRUNCATE {names} CASCADE")
+        finally:
+            await conn.close()
+
+    asyncio.run(truncate())
+
+
 @pytest.fixture
 def clock() -> FakeClock:
     return FakeClock()
@@ -35,7 +66,12 @@ def clock() -> FakeClock:
 def settings() -> Settings:
     # Never read the developer's .env: tests must not touch a real (shared) database.
     # Explicit environment variables still apply, which is how CI selects Postgres.
-    return Settings(_env_file=None, env="test", cors_origins=["http://localhost:5173"])
+    return Settings(
+        _env_file=None,
+        env="test",
+        cors_origins=["http://localhost:5173"],
+        planner_api_enabled=True,
+    )
 
 
 @pytest.fixture

@@ -7,6 +7,7 @@ import { ChatPage } from './pages/ChatPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { MyInfoPage } from './pages/MyInfoPage'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 /* Routes: auth → onboarding → app tabs. Guards send each user to the area they belong in. */
 export default function App() {
@@ -20,6 +21,8 @@ export default function App() {
         <Route path="breakdown" element={<RouteGuard area="app"><BreakdownPage /></RouteGuard>} />
         <Route path="info" element={<RouteGuard area="app"><MyInfoPage /></RouteGuard>} />
         <Route path="chat" element={<RouteGuard area="app"><ChatPage /></RouteGuard>} />
+        {/* Opened from a reset email, signed in or not. */}
+        <Route path="reset-password" element={<ResetPasswordPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

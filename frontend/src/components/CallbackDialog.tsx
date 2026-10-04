@@ -24,6 +24,9 @@ const TOPIC_MAX = 1000
 type Stage = 'form' | 'sending' | 'sent' | 'unavailable'
 
 /* "Talk to a licensed Lincoln Financial representative": a callback request form. A person follows up; nothing here is a live agent. */
+// Same checks as the server: Social Security numbers, or 10+ digits (account or card numbers).
+const SENSITIVE = /\b\d{3}[-\s.]?\d{2}[-\s.]?\d{4}\b|\d(?:[\s-]?\d){9,}/
+
 export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, service = httpSupport }: Props) {
   const titleId = useId()
   const [name, setName] = useState(defaultName)
@@ -74,6 +77,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
     const digits = c.replace(/\D/g, '')
     if (method === 'phone' && (digits.length < 10 || digits.length > 15)) return setError('Enter a phone number with area code, like (555) 123-4567.')
     if (!t) return setError('Tell us briefly what you would like help with.')
+    if (SENSITIVE.test(n) || SENSITIVE.test(t)) return setError("Please remove Social Security, account or card numbers. A representative will ask for anything they need.")
     setError('')
     setStage('sending')
     const result = await service.requestCallback({
@@ -119,7 +123,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
             <p className="muted small flush">You can keep asking the assistant questions in the meantime.</p>
             <div className="actions">
               <button className="btn" type="button" ref={doneButton} onClick={onClose}>
-                Back to chat
+                Done
               </button>
             </div>
           </div>
@@ -133,7 +137,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
             </p>
             <div className="actions">
               <button className="btn" type="button" ref={doneButton} onClick={onClose}>
-                Back to chat
+                Done
               </button>
             </div>
           </div>

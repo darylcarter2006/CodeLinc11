@@ -1,19 +1,10 @@
 /*
- * Google Identity Services (GIS): loads Google's sign-in script and handles the ID token it returns.
- * With the backend running, the token is sent to /v1/auth/google, which verifies its signature and
- * returns our own account token. Without a backend, the browser reads the token's claims for a
- * browser-only prototype account (like the email form); that path is never trusted by the server.
+ * Google Identity Services (GIS): loads Google's sign-in script. The ID token it returns goes to
+ * the backend (/v1/auth/google, see services/auth.ts), which verifies its signature; the browser
+ * never trusts the token's contents itself.
  */
 
-import { HttpError, postJson } from './http'
-
 const SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
-const ISSUERS = ['accounts.google.com', 'https://accounts.google.com']
-
-export interface GoogleProfile {
-  email: string
-  name: string
-}
 
 interface GoogleIdApi {
   initialize(config: { client_id: string; callback: (response: { credential: string }) => void }): void
@@ -47,97 +38,4 @@ export function loadGoogleIdentity(): Promise<GoogleIdApi> {
     document.head.append(script)
   })
   return loading
-}
-
-/** Decode a base64url JWT segment. */
-function decodeSegment(segment: string): unknown {
-  const b64 = segment.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(segment.length / 4) * 4, '=')
-  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
-  return JSON.parse(new TextDecoder().decode(bytes))
-}
-
-/**
- * Read name and email from a Google ID token, checking issuer, audience, expiry and that the
- * email is verified. Returns null for anything that doesn't pass.
- */
-export function readGoogleCredential(credential: string, clientId: string, now = Date.now()): GoogleProfile | null {
-  try {
-    const parts = credential.split('.')
-    if (parts.length !== 3) return null
-    const claims = decodeSegment(parts[1]) as Record<string, unknown>
-    if (!ISSUERS.includes(String(claims.iss))) return null
-    if (claims.aud !== clientId) return null
-    if (typeof claims.exp !== 'number' || claims.exp * 1000 <= now) return null
-    if (claims.email_verified !== true || typeof claims.email !== 'string') return null
-    const email = claims.email.trim().toLowerCase()
-    const name = String(claims.given_name || claims.name || email.split('@')[0]).trim()
-    return { email, name }
-  } catch {
-    return null
-  }
-}
-
-/* Backend sign-in: the server verifies the token's signature and issues an account token. */
-
-export interface SignedInUser {
-  id: string
-  email: string
-  name: string
-  given_name: string | null
-  picture: string | null
-}
-
-export interface SignInResult {
-  access_token: string
-  expires_at: string
-  user: SignedInUser
-}
-
-export type Exchange =
-  | { kind: 'ok'; result: SignInResult }
-  /** No backend sign-in here (not deployed, not configured, or unreachable): use the browser-only path. */
-  | { kind: 'unavailable' }
-  /** The backend looked at the token and said no, or can't sign in right now. Never fall back. */
-  | { kind: 'error'; message: string }
-
-// Error codes our backend returns when sign-in itself is off or the backend can't be reached.
-const NO_BACKEND_CODES = ['network_error', 'not_found', 'auth_unavailable']
-
-/**
- * Only our own backend can reject a token, and it always answers with its JSON error envelope
- * (which gives HttpError a real `code`). Anything else, such as a static host's 403/404/405 page
- * or a proxy's HTML, means no backend sign-in is deployed here, so the browser-only path is used.
- */
-function isOurBackend(e: HttpError): boolean {
-  return e.code !== 'http_error' && !NO_BACKEND_CODES.includes(e.code)
-}
-
-const isSignInResult = (v: unknown): v is SignInResult => {
-  const r = v as Partial<SignInResult> | null
-  return typeof r?.access_token === 'string' && typeof r.expires_at === 'string' && typeof r.user?.email === 'string'
-}
-
-/** Exchange Google's credential for our account token. */
-export async function exchangeCredential(credential: string): Promise<Exchange> {
-  let body: unknown
-  try {
-    const res = await postJson('/auth/google', { credential })
-    body = await res.json().catch(() => null)
-  } catch (e) {
-    if (!(e instanceof HttpError) || !isOurBackend(e)) return { kind: 'unavailable' }
-    if (e.status === 503) return { kind: 'error', message: "We couldn't reach Google to check your sign-in. Try again in a moment." }
-    if (e.status === 429) return { kind: 'error', message: 'Too many sign-in attempts. Wait a minute and try again.' }
-    return { kind: 'error', message: "Google sign-in didn't work. Try again, or use your email instead." }
-  }
-  // A 200 that isn't a sign-in result came from something other than our backend.
-  return isSignInResult(body) ? { kind: 'ok', result: body } : { kind: 'unavailable' }
-}
-
-/** Revoke the account token on the server. Best effort: sign-out continues locally regardless. */
-export async function revokeToken(token: string): Promise<void> {
-  try {
-    await postJson('/auth/logout', {}, { token })
-  } catch {
-    // Already expired or offline: nothing else to do.
-  }
 }

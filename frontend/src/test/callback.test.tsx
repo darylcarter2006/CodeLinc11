@@ -33,7 +33,7 @@ const openDialog = async (user: ReturnType<typeof userEvent.setup>) => {
 
 describe('Talk to a licensed Lincoln Financial representative', () => {
   it('validates one field at a time', async () => {
-    const { user } = setup(201)
+    const { user, callbackBody } = setup(201)
     await openDialog(user)
     expect(screen.getByLabelText('Your name')).toHaveFocus()
 
@@ -47,6 +47,10 @@ describe('Talk to a licensed Lincoln Financial representative', () => {
     await user.type(screen.getByLabelText('Phone number'), '999')
     await user.click(screen.getByRole('button', { name: 'Request a callback' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Tell us briefly what you would like help with.')
+    await user.type(screen.getByLabelText('What would you like help with?'), 'My SSN is 123-45-6789')
+    await user.click(screen.getByRole('button', { name: 'Request a callback' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Please remove Social Security, account or card numbers.')
+    expect(callbackBody()).toBeNull()
   })
 
   it('sends the request, with the summary only when shared', async () => {
@@ -61,7 +65,7 @@ describe('Talk to a licensed Lincoln Financial representative', () => {
     await user.click(screen.getByRole('button', { name: 'Request a callback' }))
 
     expect(await screen.findByText(/Request sent\./)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Back to chat' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus()
     expect(screen.getByRole('status')).toHaveTextContent('reach out by email at maya@example.com, in the morning.')
     expect(callbackBody()).toEqual({
       name: 'Maya',
@@ -85,7 +89,7 @@ describe('Talk to a licensed Lincoln Financial representative', () => {
     await user.click(screen.getByRole('button', { name: 'Request a callback' }))
 
     expect(await screen.findByText(/aren't connected yet/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Back to chat' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus()
     expect(callbackBody()).not.toHaveProperty('summary')
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

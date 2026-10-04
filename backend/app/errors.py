@@ -108,3 +108,43 @@ class AuthProviderUnreachable(AppError):
     code = "auth_provider_unreachable"
     status_code = 503
     default_message = "We couldn't reach Google to verify your sign-in. Please try again."
+
+
+class EmailInUse(AppError):
+    code = "email_taken"
+    status_code = 409
+    default_message = "An account with this email already exists. Log in instead."
+
+
+class InvalidLogin(AppError):
+    code = "invalid_login"
+    status_code = 401
+    # The same message whether the email or the password was wrong.
+    default_message = "That email and password don't match. Try again, or reset your password."
+
+
+class WeakPassword(AppError):
+    code = "weak_password"
+    status_code = 422
+    default_message = "Choose a different password."
+
+
+class PasswordNotSet(AppError):
+    code = "password_not_set"
+    status_code = 409
+    default_message = (
+        'This account signs in with Google. To add a password, use "Forgot password?" on the '
+        "log-in page."
+    )
+
+
+class ResetLinkInvalid(AppError):
+    code = "reset_link_invalid"
+    status_code = 400
+    default_message = "This reset link has expired or was already used. Request a new one."
+
+
+class ResetUnavailable(AppError):
+    code = "reset_unavailable"
+    status_code = 503
+    default_message = "Password reset by email isn't set up on this server yet."

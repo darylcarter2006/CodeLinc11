@@ -17,6 +17,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
@@ -118,14 +119,24 @@ class IdempotencyRow(Base):
 
 class UserRow(Base):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("google_sub", name="uq_users_google_sub"),)
+    __table_args__ = (
+        UniqueConstraint("google_sub", name="uq_users_google_sub"),
+        UniqueConstraint("email", name="uq_users_email"),
+    )
 
     id: MappedColumn[str] = mapped_column(Text, primary_key=True)
-    google_sub: MappedColumn[str] = mapped_column(Text, nullable=False)
+    # Null until the account signs in with Google.
+    google_sub: MappedColumn[str | None] = mapped_column(Text, nullable=True)
+    # Always lowercased before it is stored.
     email: MappedColumn[str] = mapped_column(Text, nullable=False)
     name: MappedColumn[str] = mapped_column(Text, nullable=False)
     given_name: MappedColumn[str | None] = mapped_column(Text, nullable=True)
     picture: MappedColumn[str | None] = mapped_column(Text, nullable=True)
+    # Argon2id hash; null for accounts that only sign in with Google. Never the password.
+    password_hash: MappedColumn[str | None] = mapped_column(Text, nullable=True)
+    email_verified: MappedColumn[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     created_at: MappedColumn[object] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
@@ -144,3 +155,53 @@ class AccountTokenRow(Base):
     created_at: MappedColumn[object] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class CallbackRequestRow(Base):
+    """A person asked a licensed representative to follow up. Contains contact details."""
+
+    __tablename__ = "callback_requests"
+    __table_args__ = (Index("ix_callback_requests_created", "created_at"),)
+
+    id: MappedColumn[str] = mapped_column(Text, primary_key=True)
+    name: MappedColumn[str] = mapped_column(Text, nullable=False)
+    contact_method: MappedColumn[str] = mapped_column(Text, nullable=False)
+    contact: MappedColumn[str] = mapped_column(Text, nullable=False)
+    best_time: MappedColumn[str] = mapped_column(Text, nullable=False)
+    topic: MappedColumn[str] = mapped_column(Text, nullable=False)
+    summary: MappedColumn[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    # Set when the request came from a signed-in Google account.
+    user_id: MappedColumn[str | None] = mapped_column(
+        Text, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: MappedColumn[object] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class PasswordResetTokenRow(Base):
+    """A single-use password reset link. Only the SHA-256 hash of the link's token is stored."""
+
+    __tablename__ = "password_reset_tokens"
+    __table_args__ = (Index("ix_password_reset_tokens_user", "user_id"),)
+
+    token_hash: MappedColumn[str] = mapped_column(Text, primary_key=True)
+    user_id: MappedColumn[str] = mapped_column(
+        Text, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    expires_at: MappedColumn[object] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    created_at: MappedColumn[object] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ProfileStateRow(Base):
+    """A signed-in person's saved answers, change log and checklist (validated JSON)."""
+
+    __tablename__ = "profile_states"
+
+    user_id: MappedColumn[str] = mapped_column(
+        Text, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    data: MappedColumn[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    updated_at: MappedColumn[object] = mapped_column(TIMESTAMP(timezone=True), nullable=False)

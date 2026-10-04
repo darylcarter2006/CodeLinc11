@@ -1,16 +1,18 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import App from '../App'
 import { short } from '../domain/format'
 import { compute } from '../domain/needs'
 import { EXAMPLE } from '../domain/profile'
 import { AppProvider } from '../state/AppContext'
+import { installFakeServer, type FakeServer } from './fakeServer'
 
-// No AI endpoints in tests: every call gets a 404, so onboarding uses only the local parser.
+// A fake backend for accounts and saved profiles. AI endpoints answer 404, so onboarding uses only the local parser.
+let server: FakeServer
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })))
+  server = installFakeServer()
 })
 
 const renderApp = () =>
@@ -87,20 +89,30 @@ describe('full flow', () => {
     expect(await screen.findByRole('dialog', { name: 'Permanent life insurance fits best' })).toBeInTheDocument()
   })
 
-  it('a profile from before the coverage-type questions asks for them instead of assuming term', async () => {
+  it('an old browser-only profile moves into the account, and its unanswered coverage questions stay unanswered', async () => {
     const saved = {
       p: { ...EXAMPLE, coverFor: undefined, budget: undefined, cashValue: undefined, legacy: undefined, simple: undefined },
       known: ['deps', 'children', 'youngest', 'age', 'income', 'years', 'mortgage', 'mortgageYears', 'otherDebt', 'college', 'group', 'policies', 'savings'],
       confirmed: true,
       updated: Date.now(),
     }
+    // What the earlier browser-only version left in localStorage.
     localStorage.setItem('cc-account', JSON.stringify({ name: 'Maya', email: 'maya@example.com' }))
     localStorage.setItem('cc-session', 'true')
     localStorage.setItem('cc-profile', JSON.stringify(saved))
+    localStorage.setItem('cc-log', JSON.stringify([{ at: 1, text: 'Created your profile in the onboarding chat' }]))
     const user = userEvent.setup()
     renderApp()
 
+    await user.type(await screen.findByLabelText('First name'), 'Maya')
+    await user.type(screen.getByLabelText('Email'), 'Maya@example.com')
+    await user.type(screen.getByLabelText('Password'), 'long-enough')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+
     expect(await screen.findByText('Your coverage at a glance')).toBeInTheDocument()
+    // Moved to the account, and nothing financial left behind in the browser.
+    await waitFor(() => expect(server.stateOf('maya@example.com')).toMatchObject({ saved: { confirmed: true } }))
+    for (const key of ['cc-account', 'cc-session', 'cc-profile', 'cc-log']) expect(localStorage.getItem(key)).toBeNull()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByTestId('policy-card')).toHaveTextContent('Answer five quick questions')
 
@@ -130,6 +142,28 @@ describe('full flow', () => {
 
     expect(await screen.findByText(/Replacing about 75%/)).toBeInTheDocument()
     expect(screen.getByText("Standard answer. Live answers aren't available in this view.")).toBeInTheDocument()
+  })
+
+  it('"Change something" at the end of onboarding opens My info', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await user.type(await screen.findByLabelText('First name'), 'Sam')
+    await user.type(screen.getByLabelText('Email'), 'sam@example.com')
+    await user.type(screen.getByLabelText('Password'), 'long-enough')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+
+    const answers = ['No one', '40', '$60k', 'None', 'None', 'None', 'None', 'None']
+    answers.push('My whole life', 'Lowest monthly cost', 'no', 'no', 'Keep it simple')
+    const input = await screen.findByLabelText('Your answer')
+    while (!screen.queryByRole('button', { name: 'Change something' })) {
+      await waitFor(() => expect(input).toBeEnabled())
+      const answer = answers.shift()
+      if (!answer) throw new Error('onboarding asked more questions than expected')
+      await user.type(input, `${answer}{Enter}`)
+    }
+
+    await user.click(screen.getByRole('button', { name: 'Change something' }))
+    expect(await screen.findByRole('heading', { name: 'What we know about you' })).toBeInTheDocument()
   })
 
   it('shows one inline error at a time on sign up', async () => {

@@ -14,6 +14,8 @@ dependencies = [
     "google-auth>=2.30,<3",
     "requests>=2.32,<3",
     "anthropic>=1.11,<2",
+    "argon2-cffi>=25.1,<26",
+    "boto3>=1.35,<2",
 ]
 
 [project.optional-dependencies]
@@ -55,7 +57,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["google.*"]
+module = ["google.*", "boto3.*", "asyncpg.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -70,6 +72,8 @@ omit = [
     "app/db/*",
     "app/repositories/postgres.py",
     "app/repositories/postgres_users.py",
+    "app/repositories/postgres_callbacks.py",
+    "app/repositories/postgres_profile_states.py",
 ]
 
 [tool.coverage.report]

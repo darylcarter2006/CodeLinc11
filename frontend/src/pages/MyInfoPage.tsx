@@ -76,6 +76,7 @@ export function MyInfoPage() {
           )}
         </div>
       )}
+      {!isExample && <AccountSettings />}
     </>
   )
 }
@@ -263,6 +264,70 @@ function InfoForm({ profile: p, known, status, setStatus, onSave }: FormProps) {
         </button>
       </div>
     </form>
+  )
+}
+
+/* Account: change the password (other devices are signed out), or explain how a Google-only account adds one. */
+function AccountSettings() {
+  const { account, changePassword } = useApp()
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [status, setStatus] = useState<Status | null>(null)
+  const [busy, setBusy] = useState(false)
+  if (!account) return null
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (busy) return
+    if (!current) return setStatus({ text: 'Enter your current password.', tone: 'error' })
+    if (next.length < 8) return setStatus({ text: 'Use at least 8 characters for your new password.', tone: 'error' })
+    if (next.length > 128) return setStatus({ text: 'Use at most 128 characters for your new password.', tone: 'error' })
+    setBusy(true)
+    const result = await changePassword(current, next)
+    setBusy(false)
+    if (!result.ok) return setStatus({ text: result.error, tone: 'error' })
+    setCurrent('')
+    setNext('')
+    setStatus({ text: 'Password changed. Any other devices were signed out.', tone: 'ok' })
+  }
+
+  return (
+    <div className="card pad spaced-lg">
+      <div className="sec-head">
+        <h2>Account</h2>
+      </div>
+      <p className="muted small flush">Signed in as {account.email}</p>
+      {account.hasPassword ? (
+        <form className="stack account-form" onSubmit={submit} noValidate>
+          <h3>Change password</h3>
+          {/* Lets password managers update the right saved login. */}
+          <input type="email" name="username" autoComplete="username" value={account.email} readOnly hidden />
+          <div className="field">
+            <label htmlFor="curPass">Current password</label>
+            <div className="in">
+              <input id="curPass" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="nextPass">New password</label>
+            <div className="in">
+              <input id="nextPass" type="password" autoComplete="new-password" placeholder="At least 8 characters" value={next} onChange={(e) => setNext(e.target.value)} />
+            </div>
+          </div>
+          <span className={`small status-${status?.tone ?? 'muted'}`} role="status">
+            {status?.text}
+          </span>
+          <button className="btn" type="submit" disabled={busy}>
+            {busy ? 'One moment…' : 'Change password'}
+          </button>
+        </form>
+      ) : (
+        <p className="small">
+          You sign in with Google. To also sign in with a password, use "Forgot password?" on the log-in page and we'll email
+          you a link to set one.
+        </p>
+      )}
+    </div>
   )
 }
 

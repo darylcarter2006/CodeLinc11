@@ -1,94 +1,134 @@
-import { exchangeCredential, googleClientId, readGoogleCredential, revokeToken } from './google'
+import { HttpError, postJson, requestJson } from './http'
 import { storage } from './storage'
 
-/* Auth behind an interface so a real provider can replace the local one. Passwords are never stored. */
+/*
+ * Accounts live on the server: email and password (hashed there with Argon2id) or Google. The
+ * browser keeps only the account token, its expiry, and the name and email to show; never a
+ * password. Behind an interface so tests can swap it.
+ */
 
 export interface Account {
   name: string
   email: string
-  /** "google" when signed in through the backend; absent for browser-only accounts. */
-  provider?: 'google'
+  /** False for accounts that only sign in with Google (no password to change). */
+  hasPassword: boolean
 }
 
-/** `isNew` is true when this call created the account, so the caller starts a fresh profile. */
-export type AuthResult = { ok: true; account: Account; isNew: boolean } | { ok: false; error: string }
+export type AuthResult = { ok: true; account: Account } | { ok: false; error: string }
+export type ActionResult = { ok: true } | { ok: false; error: string }
 
 export interface AuthService {
-  /** The signed-in account, or null. */
+  /** The signed-in account, or null (also null once the token has expired). */
   current(): Account | null
-  signUp(name: string, email: string, password: string): AuthResult
-  logIn(email: string, password: string): AuthResult
+  /** The account token for API calls, or null when signed out. */
+  token(): string | null
+  signUp(name: string, email: string, password: string): Promise<AuthResult>
+  logIn(email: string, password: string): Promise<AuthResult>
   /** Sign up or log in with a Google ID token (one button does both). */
   signInWithGoogle(credential: string): Promise<AuthResult>
-  signOut(): void
+  /** Always answers the same way, whether or not the email has an account. */
+  requestPasswordReset(email: string): Promise<ActionResult>
+  /** Use a reset link's token; signs in on success. */
+  resetPassword(token: string, password: string): Promise<AuthResult>
+  changePassword(current: string, next: string): Promise<ActionResult>
+  /** Forget the session in this browser (sign-out, or a token the server no longer accepts). */
+  forget(): void
+  /** Revoke a token on the server. Best effort: it expires there regardless. */
+  revoke(token: string): Promise<void>
 }
 
-interface StoredToken {
+interface Session {
   token: string
   expiresAt: string
+  account: Account
 }
 
-const tokenValid = (t: StoredToken | null): t is StoredToken => !!t && Date.parse(t.expiresAt) > Date.now()
+interface SignInResponse {
+  access_token: string
+  expires_at: string
+  user: { email: string; name: string; given_name: string | null; has_password: boolean }
+}
 
-const GOOGLE_FAILED = "Google sign-in didn't work. Try again, or use your email instead."
+const SESSION_KEY = 'auth'
+// Keys from the earlier browser-only sign-in. Removed on sign-out; on sign-in, profileStore's
+// takeLegacyState() reads them first (to move an old profile into the account), then removes them.
+const OLD_KEYS = ['account', 'session', 'token']
 
-/**
- * One account per browser. The password is checked by the form and then discarded. A Google token
- * goes to the backend for verification; without a backend it is read for name and email only.
- */
-export const localAuth: AuthService = {
-  current() {
-    const account = storage.get<Account>('account')
-    if (!account || !storage.get<boolean>('session')) return null
-    // A backend-verified Google account is only signed in while its account token is valid.
-    if (account.provider === 'google' && !tokenValid(storage.get<StoredToken>('token'))) return null
-    return account
-  },
-  signUp(name, email) {
-    const existing = storage.get<Account>('account')
-    if (existing && existing.email === email)
-      return { ok: false, error: 'An account with this email already exists in this browser. Log in instead.' }
-    const account = { name, email }
-    storage.set('account', account)
-    storage.set('session', true)
-    storage.set('token', null)
-    return { ok: true, account, isNew: true }
-  },
-  logIn(email) {
-    const existing = storage.get<Account>('account')
-    if (!existing || existing.email !== email || existing.provider === 'google')
-      return { ok: false, error: "We couldn't find an account with that email in this browser. Sign up to create one." }
-    storage.set('session', true)
-    return { ok: true, account: existing, isNew: false }
-  },
-  async signInWithGoogle(credential) {
-    const existing = storage.get<Account>('account')
-    const server = await exchangeCredential(credential)
-    if (server.kind === 'error') return { ok: false, error: server.message }
+const readSession = (): Session | null => {
+  const s = storage.get<Session>(SESSION_KEY)
+  const valid = !!s && typeof s.token === 'string' && Date.parse(s.expiresAt) > Date.now() && typeof s.account?.email === 'string'
+  return valid ? s : null
+}
 
-    let account: Account
-    if (server.kind === 'ok') {
-      const { user, access_token, expires_at } = server.result
-      account = { name: user.given_name || user.name, email: user.email, provider: 'google' }
-      storage.set('token', { token: access_token, expiresAt: expires_at } satisfies StoredToken)
-    } else {
-      // No backend sign-in available: a browser-only account, exactly like the email form.
-      const clientId = googleClientId()
-      const profile = clientId ? readGoogleCredential(credential, clientId) : null
-      if (!profile) return { ok: false, error: GOOGLE_FAILED }
-      account = existing && existing.email === profile.email && !existing.provider ? existing : profile
-      storage.set('token', null)
+const UNREACHABLE = "We couldn't reach Coverage Compass. Check your connection and try again."
+const GENERIC = 'Something went wrong. Please try again.'
+// Server messages written for people; anything else gets a generic message.
+const SHOWN = ['email_taken', 'invalid_login', 'weak_password', 'password_not_set', 'reset_link_invalid', 'reset_unavailable', 'session_expired']
+
+/** A message for the person from a failed request. */
+export function authErrorMessage(e: unknown): string {
+  if (!(e instanceof HttpError)) return GENERIC
+  if (e.status === 0 || e.status === 404 || e.code === 'http_error') return UNREACHABLE
+  if (e.status === 429) return 'Too many attempts. Wait a few minutes and try again.'
+  if (e.code === 'invalid_credential') return "Google sign-in didn't work. Try again, or use your email instead."
+  if (e.code === 'auth_provider_unreachable') return "We couldn't reach Google to check your sign-in. Try again in a moment."
+  if (e.code === 'auth_unavailable') return "Google sign-in isn't set up yet. Use your email for now."
+  return SHOWN.includes(e.code) ? e.message : GENERIC
+}
+
+function startSession(res: SignInResponse | null): AuthResult {
+  if (!res || typeof res.access_token !== 'string' || typeof res.user?.email !== 'string') return { ok: false, error: GENERIC }
+  const account: Account = {
+    name: res.user.given_name || res.user.name,
+    email: res.user.email,
+    hasPassword: res.user.has_password === true,
+  }
+  storage.set(SESSION_KEY, { token: res.access_token, expiresAt: res.expires_at, account } satisfies Session)
+  return { ok: true, account }
+}
+
+async function signIn(path: string, body: unknown): Promise<AuthResult> {
+  try {
+    return startSession(await requestJson<SignInResponse>('POST', path, body))
+  } catch (e) {
+    return { ok: false, error: authErrorMessage(e) }
+  }
+}
+
+export const serverAuth: AuthService = {
+  current: () => readSession()?.account ?? null,
+  token: () => readSession()?.token ?? null,
+  signUp: (name, email, password) => signIn('/auth/signup', { name, email, password }),
+  logIn: (email, password) => signIn('/auth/login', { email, password }),
+  signInWithGoogle: (credential) => signIn('/auth/google', { credential }),
+  resetPassword: (token, password) => signIn('/auth/password-reset/confirm', { token, new_password: password }),
+
+  async requestPasswordReset(email) {
+    try {
+      await postJson('/auth/password-reset/request', { email })
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: authErrorMessage(e) }
     }
-
-    const isNew = !(existing && existing.email === account.email)
-    storage.set('account', account)
-    storage.set('session', true)
-    return { ok: true, account, isNew }
   },
-  signOut() {
-    const stored = storage.get<StoredToken>('token')
-    storage.set('session', null)
-    storage.set('token', null)
-    if (stored) void revokeToken(stored.token)
+
+  async changePassword(current, next) {
+    const token = readSession()?.token
+    if (!token) return { ok: false, error: 'Your sign-in has expired. Please log in again.' }
+    try {
+      await postJson('/auth/password', { current_password: current, new_password: next }, { token })
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: authErrorMessage(e) }
+    }
+  },
+
+  forget() {
+    storage.set(SESSION_KEY, null)
+    OLD_KEYS.forEach((k) => storage.set(k, null))
+  },
+
+  async revoke(token) {
+    await postJson('/auth/logout', {}, { token }).catch(() => undefined)
   },
 }
