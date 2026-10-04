@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { shortDate } from '../domain/format'
+import { ADULT_AGE, compute } from '../domain/needs'
 import {
   COLLEGE_LABEL,
   INT_FIELDS,
@@ -172,6 +173,7 @@ function InfoForm({ profile: p, status, setStatus, onSave }: FormProps) {
               {num('income', '$')}
             </div>
             {num('years', '', 'yrs')}
+            <YearsNote profile={p} />
           </div>
         </div>
         <div className="card pad">
@@ -216,5 +218,16 @@ function InfoForm({ profile: p, status, setStatus, onSave }: FormProps) {
         </button>
       </div>
     </form>
+  )
+}
+
+/** Explains when the estimate uses more years than entered, so support lasts until the youngest turns 18. */
+function YearsNote({ profile }: { profile: Profile }) {
+  const c = compute(profile)
+  if (c.years <= c.yearsEntered) return null
+  return (
+    <p className="muted small flush" data-testid="years-note">
+      The estimate uses {c.years} years, not {c.yearsEntered}, so income support lasts until your youngest turns {ADULT_AGE}.
+    </p>
   )
 }

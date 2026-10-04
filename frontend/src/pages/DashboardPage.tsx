@@ -154,7 +154,10 @@ export function DashboardPage() {
               <dt>Yearly income</dt>
               <dd>{fmt(p.income)}</dd>
               <dt>Years of support</dt>
-              <dd>{c.years}</dd>
+              <dd>
+                {c.years}
+                {c.years > c.yearsEntered && <div className="muted small">until your youngest turns 18 (you entered {c.yearsEntered})</div>}
+              </dd>
               <dt>Mortgage</dt>
               <dd>
                 {fmt(p.mortgage)}
