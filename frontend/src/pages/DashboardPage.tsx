@@ -51,7 +51,7 @@ export function DashboardPage() {
         <Tile tone="have" k="Coverage in place" v={short(c.existing)} s={`${pct}% of the estimated need`} info={explainInPlace(p, c)} />
         <Tile tone="need" k="Estimated need" v={short(c.total)} s="Income, debts, college, final costs" info={explainNeed(c)} />
         <Tile tone="left" k="Left to cover" v={short(c.gap)} s={`Starting point ${short(c.suggested)}`} info={explainLeft(c)} />
-        <Tile tone="term" k="Suggested term" v={`${c.term} yrs`} s={`Matches your longest need (${c.termNeed} yrs)`} info={explainTerm(p, c)} />
+        <Tile tone="term" k="Term that matches your needs" v={`${c.term} yrs`} s={`Matches your longest need (${c.termNeed} yrs)`} info={explainTerm(p, c)} />
       </div>
 
       <div className="dash">

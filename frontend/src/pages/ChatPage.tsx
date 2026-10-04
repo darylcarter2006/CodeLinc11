@@ -33,10 +33,10 @@ export function ChatPage() {
 
   const suggestions = [
     ...(p.group ? [`What happens to my ${short(p.group)} work coverage if I change jobs?`] : []),
-    `Is ${short(c.existing)} enough for my family?`,
+    `How does ${short(c.existing)} compare with the estimate?`,
     'Term or whole life for me?',
-    ...(laddering(p, c) ? ['Should I split this into two policies?'] : []),
-    ...(p.savings ? ['Should I count my savings?'] : []),
+    ...(laddering(p, c) ? ['How would two policies compare?'] : []),
+    ...(p.savings ? ['What changes if I count my savings?'] : []),
   ]
 
   return (
@@ -64,7 +64,7 @@ export function ChatPage() {
             <dd>{fmt(c.total)}</dd>
             <dt className="accent strong">Left to cover</dt>
             <dd className="accent">{fmt(c.gap)}</dd>
-            <dt>Suggested term</dt>
+            <dt>Term that matches your needs</dt>
             <dd>{c.term} years</dd>
           </dl>
           <p className="muted small flush">
