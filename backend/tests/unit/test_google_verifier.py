@@ -112,3 +112,12 @@ def test_client_id_setting(value: str | None, expected: str | None) -> None:
 def test_client_id_setting_rejects_obvious_mistakes() -> None:
     with pytest.raises(ValueError, match=r"apps\.googleusercontent\.com"):
         Settings(_env_file=None, google_client_id="GOCSPX-this-is-a-client-secret")
+
+
+def test_rejection_reason_never_contains_the_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    secret_token = "eyJhbGciOiJSUzI1NiJ9.SECRET-PAYLOAD.signature"
+    _patch_library(monkeypatch, ValueError(f"Wrong number of segments in token: {secret_token}"))
+    with pytest.raises(InvalidGoogleToken) as caught:
+        asyncio.run(GoogleAuthVerifier(CLIENT_ID).verify(secret_token))
+    assert "SECRET-PAYLOAD" not in str(caught.value)
+    assert str(caught.value) == "library:ValueError"

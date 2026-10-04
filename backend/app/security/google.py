@@ -90,5 +90,6 @@ class GoogleAuthVerifier(GoogleTokenVerifier):
         except exceptions.TransportError as exc:
             raise GoogleUnreachable() from exc
         except (ValueError, exceptions.GoogleAuthError) as exc:
-            raise InvalidGoogleToken(str(exc)) from exc
+            # Library messages can quote the token itself; keep only the error type.
+            raise InvalidGoogleToken(f"library:{type(exc).__name__}") from exc
         return claims

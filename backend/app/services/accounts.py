@@ -42,8 +42,9 @@ class AccountService:
         try:
             profile = await self._verifier.verify(credential)
         except InvalidGoogleToken as exc:
-            # The reason is logged for debugging; the client gets one generic message.
-            logger.info("google_sign_in_rejected", extra={"error_code": str(exc)[:80]})
+            # A short, fixed reason is logged for debugging (never token text); the client gets
+            # one generic message.
+            logger.info("google_sign_in_rejected", extra={"error_code": str(exc)[:40]})
             raise InvalidCredential() from None
         except GoogleUnreachable:
             raise AuthProviderUnreachable() from None
