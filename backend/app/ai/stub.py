@@ -2,6 +2,7 @@
 
 It only answers the question that was just asked (``pending_field``): it reads one
 amount, an "I don't know", or a "none". Anything else becomes a clarification.
+``generate_response`` always returns None so the backend-composed text is used.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 import re
 from decimal import Decimal, InvalidOperation
 
-from app.ai.base import AIAdapter, CandidateUpdate, ExtractionContext, ExtractionResult
+from app.ai.base import AIAdapter, CandidateUpdate, ExtractionContext, ExtractionResult, ResponseContext
 from app.domain.profile import FIELD_SPECS
 from app.domain.questions import Question
 
@@ -90,4 +91,7 @@ class StubAIAdapter(AIAdapter):
         return ExtractionResult()
 
     async def phrase_question(self, question: Question, context: ExtractionContext) -> str | None:
+        return None
+
+    async def generate_response(self, context: ResponseContext) -> str | None:
         return None

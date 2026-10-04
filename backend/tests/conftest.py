@@ -34,7 +34,8 @@ def clock() -> FakeClock:
 def settings() -> Settings:
     # Never read the developer's .env: tests must not touch a real (shared) database.
     # Explicit environment variables still apply, which is how CI selects Postgres.
-    return Settings(env="test", cors_origins=["http://localhost:5173"])
+    # Force ai_provider="stub" so tests never attempt real Bedrock calls.
+    return Settings(env="test", cors_origins=["http://localhost:5173"], ai_provider="stub")
 
 
 @pytest.fixture

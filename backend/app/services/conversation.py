@@ -12,9 +12,10 @@ import re
 import time
 from typing import Any
 
-from app.ai.base import AIAdapter, ExtractionContext, ExtractionResult
+from app.ai.base import AIAdapter, ExtractionContext, ExtractionResult, ResponseContext
 from app.contracts.requests import MessageRequest
 from app.contracts.responses import MessageResponse, MessagesResponse
+from app.calculators.registry import get_policy
 from app.domain.profile import FIELD_SPECS, Profile, ProfileValue
 from app.domain.questions import REVIEW_FIELD, Question, fields_needing_review, next_question
 from app.domain.records import ConversationState, MessageRecord, SessionRecord
@@ -23,6 +24,7 @@ from app.repositories.base import SessionRepository, SessionUpdate
 from app.security.redaction import log_safe_session_id
 from app.security.tokens import new_id
 from app.services.extraction import ExtractionOutcome, validate_candidates
+from app.services.explanation import explain
 from app.services.idempotency import find_replay, new_record, request_hash
 from app.services.presenters import to_message_out
 from app.services.profiles import build_profile_response, load_for_update
@@ -47,6 +49,7 @@ _AFFIRMATIVE_RE = re.compile(
     re.IGNORECASE,
 )
 _UNSAFE_PHRASING_RE = re.compile(r"\d|https?:|www\.", re.IGNORECASE)
+_UNSAFE_RESPONSE_RE = re.compile(r"https?:|www\.", re.IGNORECASE)
 
 WARNING_AI_FALLBACK = "ai_fallback_used"
 WARNING_CLARIFICATION = "clarification_needed"
@@ -156,12 +159,15 @@ class ConversationService:
                 confirmed_review = True
 
             question = next_question(profile)
+            breakdown = get_policy().calculate(profile)
+            calculation_summary = explain(breakdown)
             assistant_message = await self._compose(
                 context,
                 outcome,
                 question,
                 confirmed_review,
                 ai_failed=WARNING_AI_FALLBACK in warnings,
+                calculation_summary=calculation_summary,
             )
 
             new_revision = request.expected_revision + 1
@@ -232,6 +238,16 @@ class ConversationService:
             logger.warning("ai_extraction_failed", extra={"ai_model_id": self._ai.model_id})
             return None
 
+    async def _generate(self, context: ResponseContext) -> str | None:
+        """Ask the adapter to compose the full reply; None means use backend_text."""
+        try:
+            return await asyncio.wait_for(
+                self._ai.generate_response(context), self._settings.ai_timeout_seconds
+            )
+        except Exception:
+            logger.warning("ai_response_generation_failed", extra={"ai_model_id": self._ai.model_id})
+            return None
+
     async def _phrase(self, question: Question, context: ExtractionContext) -> str:
         try:
             phrased = await asyncio.wait_for(
@@ -253,6 +269,7 @@ class ConversationService:
         confirmed_review: bool,
         *,
         ai_failed: bool,
+        calculation_summary: str | None = None,
     ) -> str:
         parts: list[str] = []
         if ai_failed:
@@ -277,4 +294,22 @@ class ConversationService:
             parts.append(DONE_MESSAGE)
         else:
             parts.append(await self._phrase(question, context))
-        return " ".join(parts)
+
+        backend_text = " ".join(parts)
+
+        # When not falling back, ask Bedrock to compose a natural reply from the facts.
+        if not ai_failed:
+            response_ctx = ResponseContext(
+                backend_text=backend_text,
+                next_field=question.field if question else None,
+                next_question_text=question.text if question else None,
+                calculation_summary=calculation_summary,
+                fields_updated=list(outcome.updates.keys()),
+                fields_to_clarify=list(outcome.clarify),
+                recent_messages=context.recent_messages,
+            )
+            ai_reply = await self._generate(response_ctx)
+            if ai_reply and not _UNSAFE_RESPONSE_RE.search(ai_reply) and len(ai_reply) <= MAX_QUESTION_CHARS:
+                return ai_reply
+
+        return backend_text

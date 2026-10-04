@@ -24,7 +24,7 @@ from typing import Any
 
 import boto3
 
-from app.ai.base import AIAdapter, ExtractionContext, ExtractionResult
+from app.ai.base import AIAdapter, ExtractionContext, ExtractionResult, ResponseContext
 from app.domain.profile import FIELD_SPECS
 from app.domain.questions import Question
 
@@ -67,6 +67,28 @@ Rules:
 - Do NOT include any numbers, dollar amounts, percentages, or URLs in your response.
 - Keep the rephrased question under 400 characters.
 - If you cannot rephrase safely, return the word FALLBACK.
+"""
+
+# System prompt for composing the full assistant reply.
+# Numbers are never invented — they come from backend_text / calculation_summary.
+_RESPONSE_SYSTEM = """\
+You are a friendly life-insurance planning assistant.
+Your job is to write ONE short reply (2–4 sentences, under 500 characters) that:
+  1. Acknowledges what the user just said (if anything was recorded or clarified).
+  2. If clarification is needed, politely ask them to give a single clear number for the \
+field mentioned.
+  3. If a calculation result is provided, mention the coverage gap in plain language \
+using ONLY the numbers given to you — never invent or estimate figures.
+  4. Asks the next question naturally if one is provided.
+  5. Ends warmly if the conversation is complete.
+
+Hard rules:
+- Use ONLY the numbers, dollar amounts, and field labels supplied to you. Never invent \
+figures.
+- Do NOT include JSON, markdown, bullet points, or URLs.
+- Do NOT give financial advice, recommend specific products, or make guarantees.
+- Every dollar figure you mention must appear verbatim in the context you were given.
+- If you cannot produce a safe reply, return the single word FALLBACK.
 """
 
 
@@ -174,5 +196,33 @@ class BedrockAIAdapter(AIAdapter):
             self._invoke, _PHRASING_SYSTEM, user_content, ()
         )
         if not raw or raw.strip().upper() == "FALLBACK":
+            return None
+        return raw
+
+    async def generate_response(self, context: ResponseContext) -> str | None:
+        """Ask Bedrock to compose the full assistant reply from backend-computed facts."""
+        parts: list[str] = [f"Backend message: {context.backend_text}"]
+        if context.fields_updated:
+            parts.append(f"Fields recorded this turn: {', '.join(context.fields_updated)}.")
+        if context.fields_to_clarify:
+            parts.append(
+                f"Fields needing clarification: {', '.join(context.fields_to_clarify)}. "
+                "Ask the user to give a single clear number for each."
+            )
+        if context.calculation_summary:
+            parts.append(f"Current calculation: {context.calculation_summary}")
+        if context.next_question_text:
+            parts.append(f"Next question to ask: {context.next_question_text}")
+        else:
+            parts.append("The conversation is complete. Close warmly.")
+
+        user_content = "\n".join(parts)
+        raw = await asyncio.to_thread(
+            self._invoke, _RESPONSE_SYSTEM, user_content, context.recent_messages
+        )
+        if not raw or raw.strip().upper() == "FALLBACK":
+            return None
+        # Safety: the response must not be excessively long.
+        if len(raw) > 600:
             return None
         return raw

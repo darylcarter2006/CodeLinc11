@@ -1,7 +1,8 @@
 """AI adapter interface.
 
-The model may only *propose* candidate profile values and *phrase* questions. It never
-calculates, and everything it returns is validated as untrusted input before use.
+The model may only *propose* candidate profile values, *phrase* questions, and
+*compose* the final assistant reply. It never calculates; all numbers come from the
+backend calculator, and everything the model returns is validated before use.
 """
 
 from __future__ import annotations
@@ -47,6 +48,28 @@ class ExtractionContext:
     recent_messages: tuple[tuple[str, str], ...] = ()
 
 
+@dataclass(frozen=True)
+class ResponseContext:
+    """All backend-computed facts the model needs to write the assistant reply.
+
+    The model MUST NOT invent numbers — every figure it uses must come from these fields.
+    """
+
+    # What the backend decided to say (acknowledgement + fallback question text).
+    backend_text: str
+    # The next question field name and approved question text (None when conversation done).
+    next_field: str | None
+    next_question_text: str | None
+    # Structured calculation result for the current profile (None = incomplete).
+    calculation_summary: str | None
+    # Whether any fields were just updated this turn.
+    fields_updated: list[str]
+    # Whether clarification was needed on any fields.
+    fields_to_clarify: list[str]
+    # Recent conversation window, oldest first.
+    recent_messages: tuple[tuple[str, str], ...] = ()
+
+
 class AIAdapter(ABC):
     model_id: str
 
@@ -56,3 +79,11 @@ class AIAdapter(ABC):
     @abstractmethod
     async def phrase_question(self, question: Question, context: ExtractionContext) -> str | None:
         """Optional friendlier wording. Return None to use the approved copy."""
+
+    @abstractmethod
+    async def generate_response(self, context: ResponseContext) -> str | None:
+        """Write the full assistant reply given backend-computed facts.
+
+        The model must not introduce new numbers; it only weaves together the facts
+        in ``context``. Return None to fall back to ``context.backend_text``.
+        """

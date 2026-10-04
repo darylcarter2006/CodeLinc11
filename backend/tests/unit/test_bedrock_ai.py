@@ -211,5 +211,5 @@ def test_build_ai_adapter_returns_stub_by_default() -> None:
     from app.container import build_ai_adapter
     from app.settings import Settings
 
-    adapter = build_ai_adapter(Settings())
+    adapter = build_ai_adapter(Settings(ai_provider="stub"))
     assert isinstance(adapter, StubAIAdapter)

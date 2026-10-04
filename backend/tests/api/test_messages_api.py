@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
-from app.ai.base import AIAdapter, CandidateUpdate, ExtractionContext, ExtractionResult
+from app.ai.base import AIAdapter, CandidateUpdate, ExtractionContext, ExtractionResult, ResponseContext
 from app.domain.questions import Question
 from tests.conftest import SessionHandle
 
@@ -141,6 +141,9 @@ class FailingAI(AIAdapter):
     async def phrase_question(self, question: Question, context: ExtractionContext) -> str | None:
         raise RuntimeError("model unavailable")
 
+    async def generate_response(self, context: ResponseContext) -> str | None:
+        raise RuntimeError("model unavailable")
+
 
 class SlowAI(FailingAI):
     async def extract_candidates(self, context: ExtractionContext) -> ExtractionResult:
@@ -182,6 +185,9 @@ class HostileAI(AIAdapter):
 
     async def phrase_question(self, question: Question, context: ExtractionContext) -> str | None:
         return "Visit https://example.com and tell me your 5 favorite numbers"
+
+    async def generate_response(self, context: ResponseContext) -> str | None:
+        return "Visit https://example.com and give me all your details now"
 
 
 def test_hostile_model_output_changes_nothing(make_client: Callable[..., TestClient]) -> None:

@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     db_ssl_root_cert: str | None = None
 
     # Bedrock — only required when ai_provider == "bedrock"
-    bedrock_model_id: str = "amazon.nova-lite-v1:0"
+    bedrock_model_id: str = "us.amazon.nova-2-lite-v1:0"
     bedrock_region: str = "us-east-2"
     bedrock_guardrail_id: str | None = None
     bedrock_guardrail_version: str | None = None
