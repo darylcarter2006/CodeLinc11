@@ -91,7 +91,8 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 |---|---|
 | `src/test/flow.test.tsx` | End-to-end: sign up → answer every onboarding question with the local parser → confirm → dashboard tiles match `compute()` → edit income → tiles update and a log entry appears. Also example mode → "Why?" → standard answer, and an inline sign-up error. |
 | `src/test/google.test.tsx` | Google sign-in flows: not set up, a new Google user, a returning user who keeps their answers, and a rejected token. |
-| `src/test/callback.test.tsx` | "Talk to a licensed Lincoln Financial representative" flows: inline validation, sending with and without the shared summary, the not-connected message, and closing with Escape. |
+| `src/test/breakdown.test.tsx` | The Breakdown page when existing coverage already covers the need: it says so and shows no starting-point figure. |
+| `src/test/callback.test.tsx` | "Talk to a licensed Lincoln Financial representative" flows: inline validation, sending with and without the shared summary, the not-connected message, closing with Escape, and keeping keyboard focus inside the form. |
 | `src/test/setup.ts` | Test setup: DOM matchers and a clean page/storage between tests. |
 | `vite.config.ts` | Dev server proxy to the backend and the Vitest settings. |
 | `package.json` | Libraries and commands: `dev`, `build`, `lint`, `typecheck`, `test`, `preview`. |
