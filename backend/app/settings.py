@@ -22,8 +22,15 @@ class Settings(BaseSettings):
     )
 
     repository_backend: Literal["memory", "postgres"] = "memory"
-    ai_provider: Literal["stub"] = "stub"
+    ai_provider: Literal["stub", "openai", "bedrock"] = "stub"
     ai_timeout_seconds: float = 15.0
+
+    # --- OpenAI (required when ai_provider = "openai") ---
+    # Set via OPENAI_API_KEY env var or .env file — never hardcode here.
+    openai_api_key: str | None = None
+    # Override the default model names (gpt-4o-mini / gpt-4o).
+    openai_model_fast: str = "gpt-4o-mini"
+    openai_model_smart: str = "gpt-4o"
     # Per client IP, across /v1/ai/extract and /v1/ai/chat combined.
     ai_rate_limit_per_minute: int = Field(default=20, ge=1)
 

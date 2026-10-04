@@ -77,7 +77,16 @@ def build_google_verifier(settings: Settings) -> GoogleTokenVerifier | None:
 
 
 def build_ai_adapter(settings: Settings) -> AIAdapter:
-    # "bedrock" is added here in implementation step 5.
+    if settings.ai_provider == "openai":
+        if not settings.openai_api_key:
+            raise RuntimeError("AI_PROVIDER=openai requires OPENAI_API_KEY to be set.")
+        from app.ai.openai_adapter import OpenAIAdapter
+
+        return OpenAIAdapter(
+            api_key=settings.openai_api_key,
+            model_fast=settings.openai_model_fast,
+            model_smart=settings.openai_model_smart,
+        )
     return StubAIAdapter()
 
 
