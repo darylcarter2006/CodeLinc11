@@ -71,6 +71,24 @@ def test_cors_allows_configured_origin_only(client: TestClient) -> None:
     assert "access-control-allow-origin" not in denied.headers
 
 
+def test_cors_allows_every_method_the_api_uses(client: TestClient) -> None:
+    """The front end is on another domain, so the browser asks first (a preflight) before any
+    request with a token or JSON. Every route's method must pass, or the browser blocks it."""
+    paths = client.app.openapi()["paths"]  # type: ignore[attr-defined]
+    routes = [(path, method.upper()) for path, ops in paths.items() for method in ops]
+    assert ("/v1/account/profile", "PUT") in routes
+    for path, method in routes:
+        response = client.options(
+            path,
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": "authorization,content-type",
+            },
+        )
+        assert response.status_code == 200, f"{method} {path}: {response.text}"
+
+
 def test_validation_errors_do_not_echo_input(client: TestClient) -> None:
     response = client.post("/v1/sessions", json={"secret_field": "my ssn"})
     assert response.status_code == 422
