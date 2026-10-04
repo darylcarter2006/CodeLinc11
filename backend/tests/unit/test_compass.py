@@ -93,3 +93,20 @@ def test_clean(updates: dict[str, Any], expected: dict[str, Any]) -> None:
 @pytest.mark.parametrize("bad", [None, [], "income: 5", 42])
 def test_clean_rejects_non_objects(bad: Any) -> None:
     assert clean(bad) == {}
+
+
+def test_years_reach_the_youngest_childs_18th_birthday() -> None:
+    family = CompassProfile(
+        deps=["partner", "kids"], children=2, youngest=2, years=15, income=78_000
+    )
+    calc = compute(family)
+    assert calc.years == 16
+    assert calc.lines[0].amount == 78_000 * 0.75 * 16
+    assert (
+        calc.lines[0].how
+        == "75% of $78,000 × 16 years (until your youngest turns 18; you entered 15)"  # noqa: RUF001 (the app uses a real multiplication sign)
+    )
+    grown = CompassProfile(deps=["kids"], children=1, youngest=20, years=15, income=78_000)
+    assert compute(grown).years == 15
+    no_kids = CompassProfile(deps=["partner"], youngest=2, years=15, income=78_000)
+    assert compute(no_kids).years == 15

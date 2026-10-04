@@ -34,6 +34,8 @@ FINAL_EXPENSES = 15_000
 COLLEGE_COST = {"public": 100_000, "half": 50_000, "none": 0}
 STEP = 25_000
 TERMS = (10, 15, 20, 25, 30)
+# Income support lasts at least until the youngest child reaches this age.
+ADULT_AGE = 18
 
 Money = Annotated[float, Field(ge=0, le=MAX_MONEY)]
 Small = Annotated[int, Field(ge=0, le=MAX_INT)]
@@ -143,14 +145,21 @@ def _usd(amount: float) -> str:
 def compute(p: CompassProfile) -> Calculation:
     """Needs calculation; mirrors ``compute()`` in ``frontend/src/domain/needs.ts``."""
     kids = p.children if p.has("kids") else 0
-    years = 0 if p.has("none") else p.years
+    years_entered = 0 if p.has("none") else p.years
+    until_adult = max(0, ADULT_AGE - p.youngest) if kids > 0 else 0
+    years = max(years_entered, until_adult)
+    extended = (
+        f" (until your youngest turns {ADULT_AGE}; you entered {years_entered})"
+        if years > years_entered
+        else ""
+    )
     per_child = COLLEGE_COST[p.college]
     lines = (
         Line(
             "c1",
             "Income replacement",
             p.income * REPLACE * years,
-            f"75% of {_usd(p.income)} × {years} years"
+            f"75% of {_usd(p.income)} × {years} years{extended}"
             if years
             else "No one relies on your income, so none is needed",
         ),
