@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { fmt } from '../domain/format'
 import { httpSupport, type BestTime, type CallbackRequest, type ContactMethod, type SupportService } from '../services/support'
 
@@ -22,7 +22,26 @@ const TOPIC_MAX = 1000
 
 type Stage = 'form' | 'sending' | 'sent' | 'unavailable'
 
-/* "Talk to a licensed professional": a callback request form. A person follows up; nothing here is a live agent. */
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/** Keep Tab and Shift+Tab inside the dialog so keyboard users can't land on the page behind it. */
+function trapTab(e: ReactKeyboardEvent<HTMLDivElement>) {
+  if (e.key !== 'Tab') return
+  const items = [...e.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE)]
+  if (!items.length) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  const active = document.activeElement
+  if (e.shiftKey && (active === first || !e.currentTarget.contains(active))) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+/* "Talk to a licensed Lincoln Financial representative": a callback request form. A person follows up; nothing here is a live agent. */
 export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, service = httpSupport }: Props) {
   const titleId = useId()
   const [name, setName] = useState(defaultName)
@@ -34,10 +53,16 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
   const [error, setError] = useState('')
   const [stage, setStage] = useState<Stage>('form')
   const firstField = useRef<HTMLInputElement>(null)
+  const doneButton = useRef<HTMLButtonElement>(null)
   const close = useRef(onClose)
   useEffect(() => {
     close.current = onClose
   }, [onClose])
+
+  // The submit button disappears when a result message replaces the form; keep focus in the dialog.
+  useEffect(() => {
+    if (stage === 'sent' || stage === 'unavailable') doneButton.current?.focus()
+  }, [stage])
 
   // Once on open: focus the first field, close on Escape, and return focus to the opener afterwards.
   useEffect(() => {
@@ -91,11 +116,11 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal card" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div className="modal card" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={trapTab}>
         <div className="modal-head">
           <div>
             <div className="eyebrow">Prefer a person?</div>
-            <h2 id={titleId}>Talk to a licensed professional</h2>
+            <h2 id={titleId}>Talk to a licensed Lincoln Financial representative</h2>
           </div>
           <button className="linkish" type="button" onClick={onClose}>
             Close
@@ -105,13 +130,13 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
         {stage === 'sent' && (
           <div className="stack" role="status">
             <p className="flush">
-              <strong>Request sent.</strong> Thanks, {name.trim()}. A licensed professional will reach out by {method}{' '}
+              <strong>Request sent.</strong> Thanks, {name.trim()}. A licensed Lincoln Financial representative will reach out by {method}{' '}
               at <b>{contact.trim()}</b>
               {timeText}.
             </p>
             <p className="muted small flush">You can keep asking the assistant questions in the meantime.</p>
             <div className="actions">
-              <button className="btn" type="button" onClick={onClose}>
+              <button className="btn" type="button" ref={doneButton} onClick={onClose}>
                 Back to chat
               </button>
             </div>
@@ -125,7 +150,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
               here, or try again later.
             </p>
             <div className="actions">
-              <button className="btn" type="button" onClick={onClose}>
+              <button className="btn" type="button" ref={doneButton} onClick={onClose}>
                 Back to chat
               </button>
             </div>
@@ -135,7 +160,7 @@ export function CallbackDialog({ onClose, defaultName, defaultEmail, summary, se
         {(stage === 'form' || stage === 'sending') && (
           <form className="stack" onSubmit={submit} noValidate>
             <p className="muted small flush">
-              If the assistant isn't answering what you need, ask for a licensed professional to follow up with you.
+              If the assistant isn't answering what you need, ask for a licensed Lincoln Financial representative to follow up with you.
             </p>
             <div className="field">
               <label htmlFor="cb-name">Your name</label>

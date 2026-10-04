@@ -88,7 +88,7 @@ export function ChatPage() {
             <p className="human-help">
               Not finding what you need?{' '}
               <button className="linkish" type="button" onClick={() => setHelpOpen(true)}>
-                Talk to a licensed professional
+                Talk to a licensed Lincoln Financial representative
               </button>
             </p>
           </div>

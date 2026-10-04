@@ -1,7 +1,7 @@
 import { HttpError, postJson } from './http'
 
 /*
- * Requests for a licensed professional to follow up. Behind an interface so the team can route
+ * Requests for a licensed Lincoln Financial representative to follow up. Behind an interface so the team can route
  * them to a CRM, inbox or scheduling tool later. Nothing pretends to be a live person.
  */
 
