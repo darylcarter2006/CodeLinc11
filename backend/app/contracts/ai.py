@@ -5,9 +5,12 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.domain.compass import CompassProfile
+
+# Total characters across the chat history sent in one request (about 3,000 tokens).
+MAX_HISTORY_CHARS = 12_000
 
 AskedField = Literal[
     "deps", "children", "youngest", "age", "income", "years", "mortgage",
@@ -36,7 +39,9 @@ class ChatTurnIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     role: Literal["user", "assistant"]
-    content: str = Field(max_length=4000)
+    # Real turns are short (chat answers are under ~120 words); this also limits how much a
+    # client can stuff into fabricated history.
+    content: str = Field(max_length=2000)
 
 
 class ChatContext(BaseModel):
@@ -52,5 +57,11 @@ class ChatContext(BaseModel):
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    messages: list[ChatTurnIn] = Field(min_length=1, max_length=20)
+    messages: list[ChatTurnIn] = Field(min_length=1, max_length=16)
     context: ChatContext
+
+    @model_validator(mode="after")
+    def _bounded_history(self) -> ChatRequest:
+        if sum(len(m.content) for m in self.messages) > MAX_HISTORY_CHARS:
+            raise ValueError(f"conversation is limited to {MAX_HISTORY_CHARS} characters")
+        return self

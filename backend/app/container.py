@@ -36,6 +36,7 @@ class Container:
     assessments: AssessmentService
     compass_ai: CompassAIService
     ai_limiter: RateLimiter
+    ai_global_limiter: RateLimiter
     accounts: AccountService
     auth_limiter: RateLimiter
 
@@ -77,7 +78,10 @@ def build_google_verifier(settings: Settings) -> GoogleTokenVerifier | None:
 
 
 def build_ai_adapter(settings: Settings) -> AIAdapter:
-    # "bedrock" is added here in implementation step 5.
+    if settings.ai_provider == "anthropic":
+        from app.ai.claude import ClaudeAdapter
+
+        return ClaudeAdapter(settings)
     return StubAIAdapter()
 
 
@@ -104,6 +108,7 @@ def build_container(
         assessments=AssessmentService(repo, clock),
         compass_ai=CompassAIService(ai, settings.ai_timeout_seconds),
         ai_limiter=RateLimiter(settings.ai_rate_limit_per_minute),
+        ai_global_limiter=RateLimiter(settings.ai_global_rate_limit_per_minute),
         accounts=AccountService(users, google_verifier, settings.account_token_ttl_hours, clock),
         auth_limiter=RateLimiter(settings.auth_rate_limit_per_minute),
     )

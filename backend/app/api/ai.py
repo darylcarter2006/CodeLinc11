@@ -12,6 +12,7 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 def rate_limit(request: Request, container: ContainerDep) -> None:
     client = request.client.host if request.client else "unknown"
     container.ai_limiter.check(client)
+    container.ai_global_limiter.check("all-clients")
 
 
 AI_ERRORS = error_responses(422, 429, 502, 503)

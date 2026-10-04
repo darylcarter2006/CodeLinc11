@@ -17,7 +17,7 @@ Open **http://localhost:5173**. To look around without signing up, click **"Expl
 data instead"**. Without a backend, accounts are saved in your browser, onboarding uses the
 built-in answer parser, and Chat gives standard answers.
 
-**With the backend** (server-checked Google sign-in, and live AI once an AI model is configured).
+**With the backend** (server-checked Google sign-in, and live answers from Claude once an API key is set).
 Requires Python 3.12+. In a second terminal:
 
 ```bash
@@ -27,9 +27,10 @@ python3 -m venv .venv                        # Windows: python -m venv .venv
 .venv/bin/uvicorn app.main:app --reload      # Windows: .venv\Scripts\uvicorn app.main:app --reload
 ```
 
-The front end forwards API calls to `http://localhost:8000` automatically. Until an AI model is set
-up, the backend reports AI as unavailable and the app keeps using the built-in parser and standard
-answers. Settings such as the AI provider and Google client ID are in
+The front end forwards API calls to `http://localhost:8000` automatically. Until Claude is switched
+on, the backend reports AI as unavailable and the app keeps using the built-in parser and standard
+answers. To switch it on, add `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=<your key>` to
+`backend/.env` (never commit it) and restart the backend. Settings such as the AI provider and Google client ID are in
 [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
 
 ## Repository layout

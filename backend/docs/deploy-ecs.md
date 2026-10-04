@@ -15,7 +15,7 @@ Region for everything below: **us-east-2 (Ohio)**, the same as RDS. Console labe
 occasionally, so if a name differs slightly, look for the closest match.
 
 **Cost:** roughly $1–2 a day (Fargate task plus load balancer). Fargate isn't covered by the
-free tier, so delete the service after the hackathon (step 9).
+free tier, so delete the service after the hackathon (step 10).
 
 ---
 
@@ -75,8 +75,8 @@ choose **Create new role** when it asks.
   ```
 - **Infrastructure role:** lets Express Mode create the load balancer, security groups and
   scaling for you.
-- **Task role (later):** only needed once Bedrock is on, for `bedrock:InvokeModel` and
-  `bedrock:InvokeModelWithResponseStream`. Not needed yet.
+- **Task role:** not needed. The backend calls Claude through the Anthropic API with an API key
+  (step 9), not through AWS.
 
 ## 4. Create the Express service
 
@@ -101,7 +101,7 @@ choose **Create new role** when it asks.
 | `CORS_ORIGINS` | `https://main.d2g8j1b83mvwk9.amplifyapp.com` |
 | `GOOGLE_CLIENT_ID` | the Google OAuth client ID (same as `backend/.env`) |
 | `FORWARDED_ALLOW_IPS` | `172.31.0.0/16` (the default VPC's range; see note) |
-| `AI_PROVIDER` | `stub` (until Bedrock is wired in) |
+| `AI_PROVIDER` | `stub` until Claude is switched on (step 9), then `anthropic` |
 
 **Secrets** (value from Secrets Manager):
 
@@ -181,11 +181,37 @@ the secret key), then delete the old key.
 **Changing environment variables** (for example `AI_PROVIDER`) isn't done by the workflow. Use
 **ECS → the service → Update service**, or ask whoever owns the AWS account.
 
-## 9. When the hackathon is over
+## 9. Switch on Claude (live AI answers)
+
+The backend calls Claude Sonnet through the Anthropic API. It needs an API key from
+<https://console.anthropic.com> (**Settings → API keys**); set a monthly spend limit there too.
+
+1. **Store the key as a secret** (never as a plain environment variable). Put it in your own
+   `backend/.env` as `ANTHROPIC_API_KEY=...`, then from `backend/`:
+   ```bash
+   aws secretsmanager create-secret --region us-east-2 --name coverage-compass/anthropic-api-key \
+     --secret-string "$(grep '^ANTHROPIC_API_KEY=' .env | cut -d= -f2-)" --query ARN --output text
+   ```
+2. **Let the service read it:** add the new secret's ARN to the `ecsTaskExecutionRole` inline
+   policy `read-coverage-compass-database-url` (as a second `Resource`).
+3. **Update the service** (**ECS → the service → Update service**), keeping everything else:
+   - add `ANTHROPIC_API_KEY` with value type **Secrets Manager** and the ARN from step 1;
+   - change `AI_PROVIDER` to `anthropic`.
+4. **Check it:** `/v1/ready` is ok, and the Chat tab gives live answers instead of standard ones.
+
+Optional settings (plain environment variables): `AI_MODEL_FAST` / `AI_MODEL_SMART` (default
+`claude-sonnet-5-5`), `AI_EFFORT` (`low`), `AI_REFUSAL_FALLBACKS` (`true`).
+
+**Rotating the key:** create a new key in the Anthropic console, update the secret
+(`aws secretsmanager put-secret-value ...`), then redeploy (running tasks keep the old value
+until they restart), then delete the old key.
+
+## 10. When the hackathon is over
 
 Delete the Express service (this also removes its load balancer), then delete the ECR images
 and the secret if they're no longer needed. Stop RDS too if nobody is using it. Also delete the
-IAM user `github-actions-coverage-compass-deploy` and the two GitHub secrets, and disable the
+IAM user `github-actions-coverage-compass-deploy` and the two GitHub secrets, delete the
+`coverage-compass/anthropic-api-key` secret, revoke the key in the Anthropic console, and disable the
 `backend-deploy` workflow.
 
 ## Troubleshooting
