@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { areaFor, useApp } from '../state/context'
+import { AccessibilityMenu } from './AccessibilityMenu'
 
 const TABS = [
   ['/dashboard', 'Dashboard'],
@@ -29,6 +30,7 @@ export function Layout() {
             <span className="tag">Life insurance needs analyzer · codeLinc 11, Path 2 concept</span>
           </div>
           <div className="hdr-right">
+            <AccessibilityMenu />
             {area === 'app' && (
               <nav className="tabs" aria-label="Sections">
                 {TABS.map(([to, label]) => (
