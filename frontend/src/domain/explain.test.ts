@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { explainInPlace, explainLeft, explainNeed, explainRange, explainTerm } from './explain'
+import { explainDrivers, explainInPlace, explainLeft, explainNeed, explainRange, explainTerm } from './explain'
 import { compute } from './needs'
 import { EXAMPLE, blankProfile } from './profile'
 
@@ -36,6 +36,17 @@ describe('number explanations (Maya example)', () => {
   })
 
   it('range', () => {
-    expect(explainRange(c)).toBe("About 15% below and above the $1,408,500 left to cover, rounded to $25,000 steps. It's a band to compare against, not a quote.")
+    expect(explainRange(c)).toBe(
+      "About 15% below and above the $1,408,500 left to cover, rounded to $25,000 steps. It's a band rather than one number because this estimate doesn't model inflation, investment returns, taxes, or changes ahead like a raise or another child. It's an estimate, not a quote.",
+    )
+  })
+
+  it('names what moves the amount most, with computed effects', () => {
+    expect(explainDrivers(EXAMPLE, c)).toEqual([
+      'Income replacement is 70% of your need ($1,111,500), set by your income and years of support.',
+      'Debts to clear is 16% of your need ($258,000), set by your mortgage and other debts.',
+      'One more year of income support would add $50,000 to the starting point.',
+      '$10,000 more yearly income would add $150,000.',
+    ])
   })
 })

@@ -16,7 +16,6 @@ STATE: dict[str, Any] = {
             "deps": ["partner", "kids"],
             "children": 2,
             "youngest": 3,
-            "age": 34,
             "income": 78000,
             "years": 19,
             "mortgage": 240000,
@@ -26,6 +25,7 @@ STATE: dict[str, Any] = {
             "group": 156000,
             "policies": 0,
             "savings": 20000,
+            "monthlyBudget": 60,
             "coverFor": "period",
             "budget": "lowest",
             "cashValue": "no",
@@ -102,7 +102,7 @@ def _with(path: list[str | int], value: Any) -> dict[str, Any]:
     [
         _with(["saved", "p", "income"], -1),
         _with(["saved", "p", "college"], "ivy"),
-        _with(["saved", "known"], ["income", "not_a_field"]),
+        _with(["saved", "known"], "income"),
         _with(["saved", "extra"], 1),
         _with(["policySeen"], "whole"),
         _with(["log"], [{"at": 1, "text": "x"}] * 51),
@@ -115,6 +115,17 @@ def test_invalid_state_is_rejected(client: TestClient, state: dict[str, Any]) ->
     headers = account(client, "a@example.com")
     assert client.put(URL, json=state, headers=headers).status_code == 422
     assert client.get(URL, headers=headers).json()["state"] is None
+
+
+def test_answers_to_retired_questions_are_dropped(client: TestClient) -> None:
+    # "age" was asked by an earlier version; a profile that still lists it loads and saves.
+    headers = account(client, "a@example.com")
+    old = _with(["saved", "known"], ["income", "age"])
+    old["saved"]["p"]["age"] = 34
+    assert client.put(URL, json=old, headers=headers).status_code == 200
+    saved = client.get(URL, headers=headers).json()["state"]["saved"]
+    assert saved["known"] == ["income"]
+    assert "age" not in saved["p"]
 
 
 def test_oversized_state_is_rejected(client: TestClient) -> None:

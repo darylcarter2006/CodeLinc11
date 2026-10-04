@@ -71,6 +71,15 @@ class UserRepository(ABC):
     async def add_reset_token(self, token: ResetTokenRecord) -> None: ...
 
     @abstractmethod
+    async def delete_user(self, user_id: str) -> None:
+        """Delete the account and everything stored under it (tokens, reset links, saved state)."""
+
+    @abstractmethod
+    async def purge(self, now: datetime, inactive_before: datetime) -> int:
+        """Delete expired tokens and reset links, and accounts not signed in to since
+        ``inactive_before``. Returns how many accounts were deleted."""
+
+    @abstractmethod
     async def consume_reset_token(self, token_hash: str, now: datetime) -> str | None:
         """Use a reset link once: returns its user ID if it is valid, and deletes every reset
         link that user has. Returns None for an unknown, used or expired link."""
@@ -184,6 +193,19 @@ class InMemoryUserRepository(UserRepository):
 
     async def add_reset_token(self, token: ResetTokenRecord) -> None:
         self._resets[token.token_hash] = token
+
+    async def delete_user(self, user_id: str) -> None:
+        self._users.pop(user_id, None)
+        self._tokens = {h: t for h, t in self._tokens.items() if t.user_id != user_id}
+        self._resets = {h: t for h, t in self._resets.items() if t.user_id != user_id}
+
+    async def purge(self, now: datetime, inactive_before: datetime) -> int:
+        self._tokens = {h: t for h, t in self._tokens.items() if t.expires_at > now}
+        self._resets = {h: t for h, t in self._resets.items() if t.expires_at > now}
+        stale = [u.id for u in self._users.values() if u.last_login_at < inactive_before]
+        for user_id in stale:
+            await self.delete_user(user_id)
+        return len(stale)
 
     async def consume_reset_token(self, token_hash: str, now: datetime) -> str | None:
         token = self._resets.get(token_hash)

@@ -22,7 +22,7 @@ export interface RequestOptions {
 
 /** Send a request and return the raw Response. Network failures become HttpError(0, "network_error"). */
 export async function request(
-  method: 'GET' | 'POST' | 'PUT',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
   body: unknown,
   { signal, token }: RequestOptions = {},
@@ -39,6 +39,8 @@ export async function request(
       signal,
     })
   } catch {
+    if (signal?.aborted && (signal.reason as { name?: string } | undefined)?.name === 'TimeoutError')
+      throw new HttpError(0, 'timeout', 'The server took too long to answer.')
     throw new HttpError(0, 'network_error', 'Could not reach the server.')
   }
   if (!res.ok) {

@@ -129,6 +129,30 @@ describe('accounts on the server', () => {
     expect(server.users.get([...server.users.keys()][0])?.password).toBe('an even better one')
   })
 
+  it('deletes the account and its saved answers after confirming with the password', async () => {
+    await existingAccount()
+    const user = userEvent.setup()
+    renderApp()
+    await logIn(user)
+    await user.click(await screen.findByRole('link', { name: 'My info' }))
+    expect(screen.getByText(/delete accounts that haven't been signed in to for 180 days/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Delete my account and answers' }))
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    expect(screen.getByText('Enter your password to confirm.')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Your password'), 'wrong-one')
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    expect(await screen.findByText("Your password isn't right.")).toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText('Your password'))
+    await user.type(screen.getByLabelText('Your password'), 'long-enough')
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    expect(await screen.findByText('Your account and saved answers were deleted.')).toBeInTheDocument()
+    expect(server.users.size).toBe(0)
+    expect(server.stateOf('maya@example.com')).toBeUndefined()
+    expect(localStorage.length).toBe(0)
+  })
+
   it('a sign-in the server no longer accepts returns to log in with a notice', async () => {
     localStorage.setItem(
       'cc-auth',

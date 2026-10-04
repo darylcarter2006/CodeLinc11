@@ -14,7 +14,7 @@ from app.ai.base import ModelFailed, ModelThrottled, ModelUnavailable
 from tests.fakes import FakeModel
 
 MAYA: dict[str, Any] = {
-    "deps": ["partner", "kids"], "children": 2, "youngest": 3, "age": 34, "income": 78000,
+    "deps": ["partner", "kids"], "children": 2, "youngest": 3, "income": 78000,
     "years": 19, "mortgage": 240000, "mortgageYears": 26, "otherDebt": 18000,
     "college": "public", "group": 156000, "policies": 0, "savings": 20000,
 }  # fmt: skip
@@ -60,12 +60,12 @@ def model_reply(updates: Any, ack: Any = "Thanks, noted.", answer: Any = "") -> 
 
 
 def test_extract_returns_only_clean_values(make_client: Callable[..., TestClient]) -> None:
-    reply = "Sure! " + model_reply({"income": "85000", "age": 34, "gap": 0, "deps": ["robot"]})
+    reply = "Sure! " + model_reply({"income": "85000", "youngest": 4, "gap": 0, "deps": ["robot"]})
     model = FakeModel(reply=reply)
     response = make_client(ai=model).post("/v1/ai/extract", json=extract_body())
     assert response.status_code == 200
     assert response.json() == {
-        "updates": {"income": 85000, "age": 34},
+        "updates": {"income": 85000, "youngest": 4},
         "ack": "Thanks, noted.",
         "answer": "",
     }
@@ -214,11 +214,12 @@ def test_chat_errors_before_first_chunk(
     assert response.status_code == status
 
 
-def test_chat_drop_mid_stream_ends_cleanly(make_client: Callable[..., TestClient]) -> None:
+def test_chat_dropped_mid_answer_is_an_error_not_half_an_answer(
+    make_client: Callable[..., TestClient],
+) -> None:
     model = FakeModel(chunks=["Part one. ", "Part two."], fail_after_chunks=1)
     response = make_client(ai=model).post("/v1/ai/chat", json=chat_body())
-    assert response.status_code == 200
-    assert response.text == "Part one. "
+    assert response.status_code == 502
 
 
 def test_chat_with_no_output_is_an_error(make_client: Callable[..., TestClient]) -> None:
@@ -313,3 +314,43 @@ def test_extract_accepts_coverage_type_fields(make_client: Callable[..., TestCli
     response = make_client(ai=model).post("/v1/ai/extract", json=body)
     assert response.json()["updates"] == {"coverFor": "lifelong"}
     assert 'coverFor ("period"' in model.calls[0][1][0].content
+
+
+# --- figures in model answers are checked against the calculation ---------------------
+
+
+def test_chat_answer_with_the_calculated_figures_is_shown(
+    make_client: Callable[..., TestClient],
+) -> None:
+    answer = "75% of $78,000 is $58,500 a year; over 19 years that's $1,111,500."
+    response = make_client(ai=FakeModel(chunks=[answer])).post("/v1/ai/chat", json=chat_body())
+    assert response.status_code == 200
+    assert response.text == answer
+
+
+def test_chat_answer_with_an_invented_figure_is_not_shown(
+    make_client: Callable[..., TestClient],
+) -> None:
+    model = FakeModel(chunks=["You probably need ", "about $2 million."])
+    response = make_client(ai=model).post("/v1/ai/chat", json=chat_body())
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "ai_unverified"
+    assert "2 million" not in response.text
+
+
+def test_chat_may_repeat_a_figure_the_person_typed(make_client: Callable[..., TestClient]) -> None:
+    body = chat_body(messages=[{"role": "user", "content": "What if I earned $90,000?"}])
+    answer = "At $90,000 your income line would change. Update My info to see the new estimate."
+    response = make_client(ai=FakeModel(chunks=[answer])).post("/v1/ai/chat", json=body)
+    assert response.status_code == 200
+
+
+def test_extract_drops_text_with_an_unchecked_figure(
+    make_client: Callable[..., TestClient],
+) -> None:
+    reply = model_reply({"income": 85000}, ack="Got it, $85,000.", answer="Most people need $1M.")
+    response = make_client(ai=FakeModel(reply=reply)).post("/v1/ai/extract", json=extract_body())
+    body = response.json()
+    assert body["updates"] == {"income": 85000}
+    assert body["ack"] == "Got it, $85,000."  # what they said
+    assert body["answer"] == ""  # a figure nothing computed

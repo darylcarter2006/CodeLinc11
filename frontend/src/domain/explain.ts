@@ -1,5 +1,5 @@
 import { fmt } from './format'
-import type { Calculation } from './needs'
+import { compute, type Calculation } from './needs'
 import type { Profile } from './profile'
 
 /* One-sentence explanations of the key numbers, built from the person's own values. */
@@ -22,4 +22,20 @@ export const explainTerm = (p: Profile, c: Calculation) => {
 }
 
 export const explainRange = (c: Calculation) =>
-  `About 15% below and above the ${fmt(c.gap)} left to cover, rounded to $25,000 steps. It's a band to compare against, not a quote.`
+  `About 15% below and above the ${fmt(c.gap)} left to cover, rounded to $25,000 steps. It's a band rather than one number because this estimate doesn't model inflation, investment returns, taxes, or changes ahead like a raise or another child. It's an estimate, not a quote.`
+
+/** The parts of the need that move the amount most, and what one change to their answers would do, all computed. */
+export function explainDrivers(p: Profile, c: Calculation): string[] {
+  const out = c.drivers
+    .slice(0, 2)
+    .map((d) => `${d.label} is ${d.share}% of your need (${fmt(d.amt)}), set by ${d.answers}.`)
+  if (c.years > 0) {
+    const more = compute({ ...p, years: c.years + 1 })
+    out.push(`One more year of income support would add ${fmt(more.suggested - c.suggested)} to the starting point.`)
+  }
+  if (c.years > 0 && p.income > 0) {
+    const raise = compute({ ...p, income: p.income + 10000 })
+    out.push(`$10,000 more yearly income would add ${fmt(raise.suggested - c.suggested)}.`)
+  }
+  return out
+}

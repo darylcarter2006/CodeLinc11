@@ -13,7 +13,6 @@ export interface Profile {
   deps: Dep[]
   children: number
   youngest: number
-  age: number
   income: number
   years: number
   mortgage: number
@@ -23,6 +22,8 @@ export interface Profile {
   group: number
   policies: number
   savings: number
+  /** What they could comfortably spend on coverage each month; 0 means not sure. */
+  monthlyBudget: number
   coverFor: CoverFor
   budget: Budget
   cashValue: YesNo
@@ -50,7 +51,6 @@ export const EXAMPLE: Profile = {
   deps: ['partner', 'kids'],
   children: 2,
   youngest: 3,
-  age: 34,
   income: 78000,
   years: 19,
   mortgage: 240000,
@@ -60,6 +60,7 @@ export const EXAMPLE: Profile = {
   group: 156000,
   policies: 0,
   savings: 20000,
+  monthlyBudget: 60,
   coverFor: 'period',
   budget: 'lowest',
   cashValue: 'no',
@@ -71,7 +72,6 @@ export const blankProfile = (): Profile => ({
   deps: [],
   children: 0,
   youngest: 0,
-  age: 0,
   income: 0,
   years: 0,
   mortgage: 0,
@@ -81,6 +81,7 @@ export const blankProfile = (): Profile => ({
   group: 0,
   policies: 0,
   savings: 0,
+  monthlyBudget: 0,
   coverFor: 'period',
   budget: 'lowest',
   cashValue: 'no',
@@ -90,8 +91,8 @@ export const blankProfile = (): Profile => ({
 
 export const blankSaved = (): SavedProfile => ({ p: blankProfile(), known: [], confirmed: false, updated: null })
 
-export const MONEY_FIELDS = ['income', 'mortgage', 'otherDebt', 'group', 'policies', 'savings'] as const
-export const INT_FIELDS = ['children', 'youngest', 'age', 'years', 'mortgageYears'] as const
+export const MONEY_FIELDS = ['income', 'mortgage', 'otherDebt', 'group', 'policies', 'savings', 'monthlyBudget'] as const
+export const INT_FIELDS = ['children', 'youngest', 'years', 'mortgageYears'] as const
 export type NumberField = (typeof MONEY_FIELDS)[number] | (typeof INT_FIELDS)[number]
 export const DEPS: Dep[] = ['partner', 'kids', 'relative', 'none']
 export const POLICY_FIELDS = ['coverFor', 'budget', 'cashValue', 'legacy', 'simple'] as const
@@ -111,7 +112,6 @@ export const LABEL: Record<Field, string> = {
   deps: 'Who relies on you',
   children: 'Children',
   youngest: "Youngest's age",
-  age: 'Your age',
   income: 'Yearly income',
   years: 'Years of support',
   mortgage: 'Mortgage balance',
@@ -121,8 +121,9 @@ export const LABEL: Record<Field, string> = {
   group: 'Coverage through work',
   policies: 'Policies you own',
   savings: 'Savings to count',
+  monthlyBudget: 'Comfortable monthly budget',
   coverFor: 'How long you want coverage',
-  budget: 'Budget priority',
+  budget: 'Cost or added benefits',
   cashValue: 'Build cash value',
   legacy: 'Leave money to heirs',
   simple: 'Prefer a simpler policy',
@@ -150,6 +151,7 @@ export const depsText = (p: Profile): string =>
 export const showVal = (k: Field, p: Profile): string => {
   if (isPolicyField(k)) return POLICY_CHOICES[k][p[k]]
   if (k === 'deps') return depsText(p)
+  if (k === 'monthlyBudget') return p.monthlyBudget ? `${fmt(p.monthlyBudget)} a month` : 'Not sure'
   if (isMoney(k)) return fmt(p[k] as number)
   if (k === 'college') return COLLEGE_LABEL[p.college]
   if (k === 'years' || k === 'mortgageYears') return `${p[k]} yrs`
@@ -172,7 +174,6 @@ export const FLOW: FlowStep[] = [
   },
   { k: 'children', need: hasKids, q: () => 'How many children do you have?', chips: () => ['1', '2', '3'] },
   { k: 'youngest', need: hasKids, q: () => 'How old is your youngest?' },
-  { k: 'age', q: () => 'How old are you?' },
   {
     k: 'income',
     q: () => "What's your yearly income before taxes? A rough number is fine.",
@@ -218,6 +219,11 @@ export const FLOW: FlowStep[] = [
     k: 'savings',
     q: () => "How much savings would you want counted toward your family's needs?",
     chips: () => ['None', '$10k', '$25k'],
+  },
+  {
+    k: 'monthlyBudget',
+    q: () => "What could you comfortably spend each month on life insurance? A rough number is fine, or say you're not sure.",
+    chips: () => ['$25', '$50', '$100', 'Not sure'],
   },
   // Coverage-type questions. Each answer adds a point to term or permanent (domain/policy.ts);
   // the tally isn't shown while they answer.

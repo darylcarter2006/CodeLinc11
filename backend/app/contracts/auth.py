@@ -75,6 +75,13 @@ class PasswordResetConfirm(BaseModel):
     new_password: str = Password
 
 
+class DeleteAccountRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Required for accounts with a password; Google-only accounts leave it out.
+    password: str | None = Field(default=None, max_length=256)
+
+
 class UserOut(BaseModel):
     id: str
     email: str

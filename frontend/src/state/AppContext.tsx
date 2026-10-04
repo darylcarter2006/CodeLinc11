@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { compute } from '../domain/needs'
 import type { PolicyType } from '../domain/policy'
 import { EXAMPLE, FLOW, POLICY_FIELDS, isPolicyField, type Profile, type SavedProfile } from '../domain/profile'
 import { ChatError, ai, type ChatContext, type ChatTurn } from '../services/ai'
@@ -232,6 +231,20 @@ export function AppProvider({ children, auth = serverAuth, store = serverProfile
     [auth, startSession],
   )
 
+  const deleteAccount = useCallback<AppState['deleteAccount']>(
+    async (password) => {
+      const result = await auth.deleteAccount(password)
+      if (result.ok) {
+        auth.forget()
+        clearSession()
+        resetChat()
+        setNotice('Your account and saved answers were deleted.')
+      }
+      return result
+    },
+    [auth, clearSession, resetChat],
+  )
+
   /** "Sign out", or "Exit example" in example mode (which returns a signed-in user to their own data). */
   const leave = useCallback(() => {
     if (demo === null) {
@@ -320,26 +333,16 @@ export function AppProvider({ children, auth = serverAuth, store = serverProfile
       setChat((m) => [...m, { id: msgId(), role: 'user', text: q }, { id: bubbleId, role: 'assistant', text: 'Thinking…' }])
       turns.current = [...turns.current, { role: 'user', content: q }]
 
-      const { profile: p, account: acct, demo: isDemo, known } = latest.current
-      const canned = () => {
-        setBubble({ text: fallbackAnswer(q, p), note: "Standard answer. Live answers aren't available in this view." })
+      const { profile: p, demo: isDemo, known } = latest.current
+      const canned = (note = "Standard answer. Live answers aren't available in this view.") => {
+        setBubble({ text: fallbackAnswer(q, p), note })
         turns.current = turns.current.slice(0, -1)
       }
-      const c = compute(p)
       // Unanswered coverage-type questions are left out, so the server treats them as unanswered
       // rather than as default answers. The example profile has them all.
       const unanswered = isDemo ? [] : POLICY_FIELDS.filter((f) => !known.includes(f))
       const context: ChatContext = {
         profile: Object.fromEntries(Object.entries(p).filter(([k]) => !(unanswered as string[]).includes(k))) as ChatContext['profile'],
-        calculation: {
-          lines: c.lines.map((l) => [l.label, l.amt]),
-          total: c.total,
-          existing: c.existing,
-          gap: c.gap,
-          suggested: c.suggested,
-          term: c.term,
-        },
-        firstName: isDemo ? null : (acct?.name ?? null),
         example: isDemo,
       }
 
@@ -354,6 +357,9 @@ export function AppProvider({ children, auth = serverAuth, store = serverProfile
         if (epoch.current !== myEpoch) return
         const code = e instanceof ChatError ? e.code : 'failed'
         if (code === 'unavailable') canned()
+        else if (code === 'unverified')
+          canned("Standard answer. The live answer's numbers didn't match your estimate, so it wasn't shown.")
+        else if (code === 'timeout') canned('Standard answer. The live answer took too long.')
         else {
           turns.current = turns.current.slice(0, -1)
           const msg =
@@ -389,6 +395,7 @@ export function AppProvider({ children, auth = serverAuth, store = serverProfile
       requestPasswordReset: auth.requestPasswordReset,
       resetPassword,
       changePassword: auth.changePassword,
+      deleteAccount,
       leave,
       enterExample,
       updateSaved: persist,
@@ -418,6 +425,7 @@ export function AppProvider({ children, auth = serverAuth, store = serverProfile
       signInWithGoogle,
       auth,
       resetPassword,
+      deleteAccount,
       leave,
       enterExample,
       persist,

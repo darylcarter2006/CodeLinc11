@@ -25,6 +25,13 @@ class CallbackRepository(ABC):
     @abstractmethod
     async def add(self, record: CallbackRecord) -> None: ...
 
+    @abstractmethod
+    async def delete_for_user(self, user_id: str) -> None: ...
+
+    @abstractmethod
+    async def purge(self, created_before: datetime) -> int:
+        """Delete requests older than this; returns how many."""
+
 
 class InMemoryCallbackRepository(CallbackRepository):
     """Local development and tests only."""
@@ -34,3 +41,11 @@ class InMemoryCallbackRepository(CallbackRepository):
 
     async def add(self, record: CallbackRecord) -> None:
         self.records.append(record)
+
+    async def delete_for_user(self, user_id: str) -> None:
+        self.records = [r for r in self.records if r.user_id != user_id]
+
+    async def purge(self, created_before: datetime) -> int:
+        before = len(self.records)
+        self.records = [r for r in self.records if r.created_at >= created_before]
+        return before - len(self.records)

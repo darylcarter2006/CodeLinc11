@@ -32,7 +32,7 @@ describe('parseLocal', () => {
     ['mortgage', 'No mortgage', {}, 0],
     ['children', 'three', {}, 3],
     ['children', '2', {}, 2],
-    ['age', 'not sure', {}, undefined],
+    ['children', 'not sure', {}, undefined],
   ]
 
   it.each(cases)('%s: "%s"', (field, text, profile, expected) => {
@@ -42,7 +42,7 @@ describe('parseLocal', () => {
 
 describe('clean', () => {
   it('rejects bad enums, negatives and unknown keys', () => {
-    expect(clean({ deps: ['partner', 'pet'], college: 'ivy', income: -5, ssn: '123', age: 'old' })).toEqual({ deps: ['partner'] })
+    expect(clean({ deps: ['partner', 'pet'], college: 'ivy', income: -5, ssn: '123', youngest: 'old' })).toEqual({ deps: ['partner'] })
   })
 
   it('collapses deps containing none', () => {
@@ -54,7 +54,7 @@ describe('clean', () => {
   })
 
   it('rounds numbers and caps age-like fields at 120', () => {
-    expect(clean({ income: 85000.6, age: 150, years: 19.4, savings: '25000' })).toEqual({ income: 85001, age: 120, years: 19, savings: 25000 })
+    expect(clean({ income: 85000.6, youngest: 150, years: 19.4, savings: '25000' })).toEqual({ income: 85001, youngest: 120, years: 19, savings: 25000 })
   })
 
   it('ignores non-objects, nulls and booleans', () => {

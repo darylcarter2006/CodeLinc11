@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response, status
 
 from app.api.auth import CurrentUser
 from app.api.deps import ContainerDep, error_responses
+from app.contracts.auth import DeleteAccountRequest
 from app.contracts.profile_state import ProfileState, ProfileStateOut
 from app.security.redaction import log_safe_session_id
 
@@ -41,3 +42,14 @@ async def put_profile(
     now = container.clock()
     await container.profile_states.put(signed_in[0].id, body.model_dump(mode="json"), now)
     return ProfileStateOut(state=body, updated_at=now)
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT, responses=error_responses(401, 422))
+async def delete_account(
+    body: DeleteAccountRequest, signed_in: CurrentUser, container: ContainerDep
+) -> Response:
+    """Delete the account and everything kept for it. Needs the password if it has one."""
+    user = signed_in[0]
+    container.accounts.confirm_password(user, body.password)
+    await container.personal_data.delete_account(user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

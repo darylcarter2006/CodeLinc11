@@ -12,7 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.contracts.ai import AskedField
-from app.domain.compass import CompassProfile
+from app.domain.compass import FIELDS, CompassProfile
 
 MAX_LOG_ENTRIES = 50
 MAX_STEPS = 20
@@ -26,6 +26,13 @@ class SavedAnswers(BaseModel):
     confirmed: bool = False
     # Milliseconds since the epoch, as the browser records it.
     updated: int | None = Field(default=None, ge=0)
+
+    @field_validator("known", mode="before")
+    @classmethod
+    def _drop_retired(cls, value: object) -> object:
+        # Answers to questions the app no longer asks (such as "age") are dropped, not rejected,
+        # so profiles saved before the change still load and save.
+        return [k for k in value if k in FIELDS] if isinstance(value, list) else value
 
     @field_validator("known")
     @classmethod

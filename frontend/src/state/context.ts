@@ -39,6 +39,8 @@ export interface AppState {
   /** Set a new password from a reset link, and sign in. */
   resetPassword(token: string, password: string): Promise<AuthResult>
   changePassword(current: string, next: string): Promise<ActionResult>
+  /** Delete the account and its saved answers, then sign out here. */
+  deleteAccount(password: string | null): Promise<ActionResult>
   leave(): void
   enterExample(): void
   updateSaved(next: SavedProfile): void

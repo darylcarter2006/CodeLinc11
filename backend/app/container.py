@@ -22,6 +22,7 @@ from app.services.accounts import AccountService
 from app.services.assessments import AssessmentService
 from app.services.compass_ai import CompassAIService
 from app.services.conversation import ConversationService
+from app.services.personal_data import PersonalDataService
 from app.services.profiles import ProfileService
 from app.services.sessions import Clock, SessionService
 from app.services.support import SupportService
@@ -53,6 +54,7 @@ class Container:
     profile_states: ProfileStateRepository
     email: EmailSender
     clock: Clock
+    personal_data: PersonalDataService
 
 
 def build_repository(settings: Settings) -> SessionRepository:
@@ -173,6 +175,13 @@ def build_container(
         profile_states=profile_states,
         email=email,
         clock=clock,
+        personal_data=PersonalDataService(
+            users,
+            callbacks,
+            clock,
+            account_retention_days=settings.account_retention_days,
+            callback_retention_days=settings.callback_retention_days,
+        ),
         support=SupportService(callbacks, clock),
         support_limiter=RateLimiter(settings.support_rate_limit_per_hour, window_seconds=3600),
         support_global_limiter=RateLimiter(

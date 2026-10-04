@@ -7,7 +7,6 @@ const halfCollege: Profile = {
   deps: ['partner', 'kids'],
   children: 2,
   youngest: 4,
-  age: 0,
   income: 85000,
   years: 18,
   mortgage: 210000,
@@ -102,7 +101,34 @@ describe("years of support reach the youngest child's 18th birthday", () => {
 describe('tradeoffs and next steps', () => {
   it('builds every applicable card for Maya, term vs. whole first', () => {
     const tags = tradeoffs(EXAMPLE, compute(EXAMPLE)).map((t) => t.tag)
-    expect(tags).toEqual(['Term or whole', 'Term length', 'Laddering', 'Work coverage', 'Savings', 'College'])
+    expect(tags).toEqual(['Term or whole', 'Term length', 'Laddering', 'Work coverage', 'Savings', 'College', 'Budget'])
+  })
+
+  it('works out the budget from what they said they can afford', () => {
+    const c = compute(EXAMPLE)
+    expect(c.budget).toEqual({ monthly: 60, yearly: 720, overTerm: 720 * c.term })
+    const card = tradeoffs(EXAMPLE, c).find((t) => t.tag === 'Budget')!
+    expect(card.title).toBe('Fitting $60 a month')
+    expect(card.body).toContain(`$720 a year, or ${'$' + (720 * c.term).toLocaleString('en-US')} over a ${c.term}-year term`)
+    expect(card.body).toContain('a 25-year term instead of 30')
+    expect(card.body).toContain('about half of college')
+  })
+
+  it('has no budget figures or card when they were not sure', () => {
+    const p = { ...EXAMPLE, monthlyBudget: 0 }
+    expect(compute(p).budget).toBeNull()
+    expect(tradeoffs(p, compute(p)).map((t) => t.tag)).not.toContain('Budget')
+  })
+
+  it('ranks what the need is made of, largest first, with each share', () => {
+    const d = compute(EXAMPLE).drivers
+    expect(d.map((x) => [x.label, x.share])).toEqual([
+      ['Income replacement', 70],
+      ['Debts to clear', 16],
+      ['College', 13],
+      ['Final expenses', 1],
+    ])
+    expect(d[0].answers).toBe('your income and years of support')
   })
 
   it('shows the fewer-dependents card when no one relies on them', () => {

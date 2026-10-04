@@ -24,7 +24,8 @@ from app.ai.base import (
 )
 from app.contracts.ai import ChatRequest, ExtractRequest, ExtractResponse
 from app.domain.compass import CompassProfile, clean, compute, policy_fit
-from app.errors import AIFailed, AIUnavailable, RateLimited, ValidationFailed
+from app.domain.figures import computed_amounts, unverified, user_amounts
+from app.errors import AIFailed, AIUnavailable, AIUnverified, RateLimited, ValidationFailed
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,8 @@ logger = logging.getLogger(__name__)
 # replies the prompts ask for (an 8-word ack, a <120-word answer).
 EXTRACT_MAX_TOKENS = 4000
 CHAT_MAX_TOKENS = 8000
+# The whole chat answer must be written within this, so the check can run before it's shown.
+CHAT_TOTAL_SECONDS = 60.0
 CHAT_HISTORY_TURNS = 8
 ACK_MAX_WORDS = 8
 ACK_MAX_CHARS = 120
@@ -44,7 +47,7 @@ _NAME_RE = re.compile(r"[^\w '\-.]", re.UNICODE)
 EXTRACT_SYSTEM = "You fill in a form from a chat message. Reply with only a JSON object."
 
 EXTRACT_PROMPT = """You help fill in a life insurance needs profile from a casual chat.
-Extract every field the person states or corrects in their latest message. Fields: deps (array of "partner","kids","relative", or ["none"]), children (count), youngest (age in years), age, income (yearly USD), years (years of income support), mortgage (USD balance left), mortgageYears, otherDebt (USD total), college ("public","half","none"), group (USD life insurance through work; a multiple of salary means multiply by income {income}), policies (USD of policies they own), savings (USD to count), coverFor ("period" for a set number of years or "lifelong"), budget ("lowest" monthly cost or "more" for added benefits), cashValue ("yes"/"no": build cash value), legacy ("yes"/"no": leave money to heirs), simple ("yes": a simple policy that just pays out, "no": wants extra options like cash value or flexible payments). "None" or "no" for a dollar field means 0.
+Extract every field the person states or corrects in their latest message. Fields: deps (array of "partner","kids","relative", or ["none"]), children (count), youngest (age in years), income (yearly USD), years (years of income support), mortgage (USD balance left), mortgageYears, otherDebt (USD total), college ("public","half","none"), group (USD life insurance through work; a multiple of salary means multiply by income {income}), policies (USD of policies they own), savings (USD to count), monthlyBudget (USD they could comfortably spend on coverage each month; "not sure" means 0), coverFor ("period" for a set number of years or "lifelong"), budget ("lowest" monthly cost or "more" for added benefits), cashValue ("yes"/"no": build cash value), legacy ("yes"/"no": leave money to heirs), simple ("yes": a simple policy that just pays out, "no": wants extra options like cash value or flexible payments). "None" or "no" for a dollar field means 0.
 We just asked about "{asked_field}": "{question}"
 Current profile: {profile}
 Latest message: \"\"\"{message}\"\"\"
@@ -59,6 +62,8 @@ Scope: only help with life insurance planning and this person's coverage. If a m
 If they mention a life change or a correction, explain the likely effect and tell them they can update it in the My info tab.
 Method: income need = 75% of income × years of support; debts = mortgage + other debts; college = $100,000 per child (public) or $50,000 (half); final expenses $15,000; minus coverage in place; rounded up to the nearest $25,000.
 Coverage in place: work group life {group} (usually ends when leaving the job), policies they own {policies}, savings counted {savings}; total {existing}.
+Budget: {budget}
+Only use dollar figures from the profile and calculation above, written the same way. Do not work out new dollar amounts (for other incomes, premiums, or what-ifs); describe the effect in words and point them to My info, where the app recalculates. An answer with any other dollar figure is not shown.
 Profile: {profile}
 Calculation: {calculation}
 {coverage}
@@ -129,6 +134,14 @@ def build_chat_system(profile: CompassProfile, first_name: str | None, example: 
         policies=_usd(profile.policies),
         savings=_usd(profile.savings),
         existing=_usd(calc.existing),
+        budget=(
+            f"they said about {_usd(profile.monthlyBudget)} a month is comfortable "
+            f"({_usd(profile.monthlyBudget * 12)} a year, "
+            f"{_usd(profile.monthlyBudget * 12 * calc.term)} over a {calc.term}-year term). "
+            "Don't estimate premiums; suggest a licensed representative prices the starting point."
+            if profile.monthlyBudget > 0
+            else "not given."
+        ),
         profile=json.dumps(profile.model_dump(), separators=(",", ":")),
         calculation=json.dumps(calculation, separators=(",", ":")),
         coverage=coverage,
@@ -217,43 +230,62 @@ class CompassAIService:
             self._log("ai_extract_failed", started)
             return ExtractResponse(updates={}, ack="", answer="")
         self._log("ai_extract", started)
-        return parse_extraction(raw)
+        result = parse_extraction(raw)
+        # Figures in the acknowledgement or answer must match the profile as updated, or what the
+        # person typed; otherwise that text is dropped (the updates themselves are already checked).
+        updated = req.profile.model_copy(update=result.updates)
+        allowed = computed_amounts(updated) | user_amounts([req.message])
+        return result.model_copy(
+            update={
+                "ack": "" if unverified(result.ack, allowed) else result.ack,
+                "answer": "" if unverified(result.answer, allowed) else result.answer,
+            }
+        )
 
     async def chat(self, req: ChatRequest) -> AsyncIterator[str]:
-        """Start the stream. Errors before the first chunk become HTTP errors; after it,
-        the stream just ends (the status line has already been sent)."""
+        """Write the whole answer, check its figures, then send it.
+
+        The answer is collected in full (within CHAT_TOTAL_SECONDS) so every dollar amount can
+        be checked against the server's own calculation before anything reaches the person.
+        Any failure, timeout or unchecked figure becomes an HTTP error; the front end then
+        shows a standard answer and says why.
+        """
         history = chat_history(req)
         context = req.context
         system = build_chat_system(context.profile, context.firstName, context.example)
         started = time.perf_counter()
         try:
-            stream = self._ai.stream(system, history, tier="smart", max_tokens=CHAT_MAX_TOKENS)
-            iterator = aiter(stream)
-            first = await asyncio.wait_for(anext(iterator), self._timeout)
-        except StopAsyncIteration:
-            raise AIFailed() from None
+            text = await asyncio.wait_for(self._collect(system, history), CHAT_TOTAL_SECONDS)
         except (ModelUnavailable, ModelThrottled, ModelFailed) as exc:
             raise _translate(exc) from None
-        except TimeoutError:
+        except (TimeoutError, StopAsyncIteration):
+            self._log("ai_chat_timeout", started)
             raise AIFailed() from None
-        self._log("ai_chat_started", started)
-        return self._rest(first, iterator, started)
-
-    async def _rest(
-        self, first: str, iterator: AsyncIterator[str], started: float
-    ) -> AsyncIterator[str]:
-        yield first
-        try:
-            while True:
-                try:
-                    chunk = await asyncio.wait_for(anext(iterator), self._timeout)
-                except StopAsyncIteration:
-                    break
-                yield chunk
         except Exception:
+            # A dropped connection mid-answer: never show half an answer.
             logger.warning("ai_chat_interrupted", extra={"ai_model_id": self._ai.model_id})
-        finally:
-            self._log("ai_chat_finished", started)
+            raise AIFailed() from None
+        if not text.strip():
+            raise AIFailed()
+        allowed = computed_amounts(context.profile) | user_amounts(
+            m.content for m in req.messages if m.role == "user"
+        )
+        if unverified(text, allowed):
+            # Only the count is logged: the figures themselves could be the person's numbers.
+            self._log("ai_chat_unverified", started)
+            raise AIUnverified()
+        self._log("ai_chat", started)
+        return _once(text)
+
+    async def _collect(self, system: str, history: list[ChatMessage]) -> str:
+        parts: list[str] = []
+        stream = self._ai.stream(system, history, tier="smart", max_tokens=CHAT_MAX_TOKENS)
+        iterator = aiter(stream)
+        # The first words must arrive within the usual timeout; the whole answer within the total.
+        parts.append(await asyncio.wait_for(anext(iterator), self._timeout))
+        async for chunk in iterator:
+            parts.append(chunk)
+        return "".join(parts)
 
     def _log(self, event: str, started: float) -> None:
         logger.info(
@@ -263,3 +295,7 @@ class CompassAIService:
                 "ai_latency_ms": round((time.perf_counter() - started) * 1000, 1),
             },
         )
+
+
+async def _once(text: str) -> AsyncIterator[str]:
+    yield text

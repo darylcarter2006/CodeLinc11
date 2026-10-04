@@ -84,6 +84,7 @@ export function parseLocal(k: Field, text: string, p: Profile): unknown {
     if (x) return Math.round(+x[1] * p.income)
   }
   if (k === 'mortgage' && /rent|no mortgage|paid off/.test(t)) return 0
+  if (k === 'monthlyBudget' && /not sure|unsure|no idea|don'?t know/.test(t)) return 0
   return isMoney(k) ? money(t) : int(t)
 }
 

@@ -148,3 +148,11 @@ class ResetUnavailable(AppError):
     code = "reset_unavailable"
     status_code = 503
     default_message = "Password reset by email isn't set up on this server yet."
+
+
+class AIUnverified(AppError):
+    code = "ai_unverified"
+    status_code = 502
+    default_message = (
+        "The live answer used numbers that don't match your estimate, so it wasn't shown."
+    )
