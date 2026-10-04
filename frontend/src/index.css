@@ -353,3 +353,10 @@ tr.sub td { color: var(--teal); font-weight: 600; }
 .figure .info { vertical-align: super; }
 .tip-pop { position: fixed; z-index: 40; padding: 10px 12px; border-radius: var(--r-sm); background: var(--ink); color: var(--ground); font: 400 0.8125rem/1.45 var(--sans); letter-spacing: normal; text-align: left; text-transform: none; white-space: normal; box-shadow: 0 4px 16px rgba(20, 38, 64, 0.25); }
 .tip-pop b { font-weight: 700; }
+
+/* Coverage-type result pop-up */
+.policy-result h3 { margin: 18px 0 8px; font-size: 15px; }
+.policy-points { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.policy-reasons { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.policy-reasons li { display: flex; gap: 10px; align-items: baseline; }
+.policy-reasons .pill { flex: none; min-width: 84px; text-align: center; }

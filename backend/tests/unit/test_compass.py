@@ -110,3 +110,54 @@ def test_years_reach_the_youngest_childs_18th_birthday() -> None:
     assert compute(grown).years == 15
     no_kids = CompassProfile(deps=["partner"], youngest=2, years=15, income=78_000)
     assert compute(no_kids).years == 15
+
+
+# --- coverage type (mirrors frontend/src/domain/policy.ts) -----------------------------
+
+from app.domain.compass import policy_fit  # noqa: E402
+
+TERM_ANSWERS = {
+    "coverFor": "period",
+    "budget": "lowest",
+    "cashValue": "no",
+    "legacy": "no",
+    "simple": "yes",
+}
+
+
+def test_policy_fit_needs_every_answer() -> None:
+    assert policy_fit(CompassProfile()) is None
+    partial = {k: v for k, v in TERM_ANSWERS.items() if k != "simple"}
+    assert policy_fit(CompassProfile(**partial)) is None
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected"),
+    [
+        ({}, ("term", 5, 0)),
+        (
+            {
+                "coverFor": "lifelong",
+                "budget": "more",
+                "cashValue": "yes",
+                "legacy": "yes",
+                "simple": "no",
+            },
+            ("perm", 0, 5),
+        ),
+        ({"coverFor": "lifelong", "cashValue": "yes", "legacy": "yes"}, ("perm", 2, 3)),
+        ({"coverFor": "lifelong", "cashValue": "yes"}, ("term", 3, 2)),
+    ],
+)
+def test_policy_fit_tally(changes: dict[str, str], expected: tuple[str, int, int]) -> None:
+    fit = policy_fit(CompassProfile(**{**TERM_ANSWERS, **changes}))
+    assert fit is not None
+    assert (fit.type, fit.term, fit.perm) == expected
+    assert len(fit.reasons) == 5
+
+
+def test_clean_accepts_only_known_policy_choices() -> None:
+    assert clean({"coverFor": "lifelong", "budget": "free", "cashValue": True, "simple": "no"}) == {
+        "coverFor": "lifelong",
+        "simple": "no",
+    }

@@ -16,15 +16,55 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Dep = Literal["partner", "kids", "relative", "none"]
 College = Literal["public", "half", "none"]
+CoverFor = Literal["period", "lifelong"]
+Budget = Literal["lowest", "more"]
+YesNo = Literal["yes", "no"]
 
 DEPS: tuple[str, ...] = ("partner", "kids", "relative", "none")
 COLLEGES: tuple[str, ...] = ("public", "half", "none")
 MONEY_FIELDS: tuple[str, ...] = ("income", "mortgage", "otherDebt", "group", "policies", "savings")
 INT_FIELDS: tuple[str, ...] = ("children", "youngest", "age", "years", "mortgageYears")
+# Coverage-type preferences and the values each may take (front end: domain/profile.ts).
+POLICY_CHOICES: dict[str, tuple[str, ...]] = {
+    "coverFor": ("period", "lifelong"),
+    "budget": ("lowest", "more"),
+    "cashValue": ("no", "yes"),
+    "legacy": ("no", "yes"),
+    "simple": ("yes", "no"),
+}
+# Which side each answer adds a point to (front end: domain/policy.ts).
+POLICY_SIDE: dict[str, dict[str, str]] = {
+    "coverFor": {"period": "term", "lifelong": "perm"},
+    "budget": {"lowest": "term", "more": "perm"},
+    "cashValue": {"no": "term", "yes": "perm"},
+    "legacy": {"no": "term", "yes": "perm"},
+    "simple": {"yes": "term", "no": "perm"},
+}
+POLICY_REASON: dict[str, dict[str, str]] = {
+    "coverFor": {
+        "period": "wants coverage for a specific period",
+        "lifelong": "wants lifelong coverage",
+    },
+    "budget": {
+        "lowest": "wants the lowest monthly cost",
+        "more": "is willing to pay more for added benefits",
+    },
+    "cashValue": {"no": "doesn't need cash value", "yes": "wants cash value to use while alive"},
+    "legacy": {
+        "no": "isn't aiming to leave extra to heirs",
+        "yes": "wants to leave money to heirs",
+    },
+    "simple": {
+        "yes": "prefers a simple policy that just pays out",
+        "no": "wants extra options like cash value or flexible payments",
+    },
+}
+
 # Every profile field, in the front end's order.
 FIELDS: tuple[str, ...] = (
     "deps", "children", "youngest", "age", "income", "years", "mortgage",
     "mortgageYears", "otherDebt", "college", "group", "policies", "savings",
+    *POLICY_CHOICES,
 )  # fmt: skip
 MAX_INT = 120
 MAX_MONEY = 1_000_000_000
@@ -59,6 +99,12 @@ class CompassProfile(BaseModel):
     group: Money = 0
     policies: Money = 0
     savings: Money = 0
+    # Coverage-type preferences; None means not answered (the browser omits those).
+    coverFor: CoverFor | None = None
+    budget: Budget | None = None
+    cashValue: YesNo | None = None
+    legacy: YesNo | None = None
+    simple: YesNo | None = None
 
     def has(self, dep: str) -> bool:
         return dep in self.deps
@@ -83,6 +129,8 @@ def clean(updates: object) -> dict[str, Any]:
                 out["deps"] = ["none"] if "none" in deps else list(dict.fromkeys(deps))
         elif key == "college" and isinstance(value, str) and value in COLLEGES:
             out["college"] = value
+        elif key in POLICY_CHOICES and isinstance(value, str) and value in POLICY_CHOICES[key]:
+            out[key] = value
         elif key in MONEY_FIELDS or key in INT_FIELDS:
             number = _as_number(value)
             if number is None or number < 0:
@@ -196,3 +244,31 @@ def compute(p: CompassProfile) -> Calculation:
         kids=kids,
         term=term,
     )
+
+
+@dataclass(frozen=True)
+class PolicyFit:
+    type: Literal["term", "perm"]
+    term: int
+    perm: int
+    reasons: tuple[str, ...]
+
+
+def policy_fit(p: CompassProfile) -> PolicyFit | None:
+    """Hidden tally over the five preferences: higher score wins, a tie goes to term.
+
+    Returns None until every preference is answered. Mirrors ``policyFit()`` in
+    ``frontend/src/domain/policy.ts``.
+    """
+    answers = [getattr(p, field) for field in POLICY_CHOICES]
+    if any(answer is None for answer in answers):
+        return None
+    sides = [
+        POLICY_SIDE[field][answer] for field, answer in zip(POLICY_CHOICES, answers, strict=True)
+    ]
+    term = sides.count("term")
+    perm = sides.count("perm")
+    reasons = tuple(
+        POLICY_REASON[field][answer] for field, answer in zip(POLICY_CHOICES, answers, strict=True)
+    )
+    return PolicyFit(type="perm" if perm > term else "term", term=term, perm=perm, reasons=reasons)

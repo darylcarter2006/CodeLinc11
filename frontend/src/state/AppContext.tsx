@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { compute } from '../domain/needs'
-import { EXAMPLE, FLOW, blankSaved, type Profile, type SavedProfile } from '../domain/profile'
+import type { PolicyType } from '../domain/policy'
+import { EXAMPLE, FLOW, POLICY_FIELDS, blankSaved, isPolicyField, type Profile, type SavedProfile } from '../domain/profile'
 import { ChatError, ai, type ChatContext, type ChatTurn } from '../services/ai'
 import { localAuth, type Account, type AuthResult, type AuthService } from '../services/auth'
 import { fallbackAnswer } from '../services/fallback'
@@ -26,6 +27,7 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
   const [saved, setSaved] = useState<SavedProfile>(() => (auth.current() ? store.loadProfile() : blankSaved()))
   const [log, setLog] = useState(() => store.loadLog())
   const [steps, setSteps] = useState<StepsChecked>(() => store.loadSteps())
+  const [policySeen, setPolicySeen] = useState<PolicyType | null>(() => store.loadPolicySeen())
   const [demo, setDemo] = useState<Profile | null>(null)
   const [chat, setChat] = useState<ChatMessage[]>([])
   const [chatBusy, setChatBusy] = useState(false)
@@ -34,10 +36,10 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
   const turns = useRef<ChatTurn[]>([])
   const epoch = useRef(0)
   // Latest values for async chat requests. Layout effect so it's current before any child effect asks.
-  const latest = useRef({ profile, account, demo: demo !== null })
+  const latest = useRef({ profile, account, demo: demo !== null, known: saved.known })
   useLayoutEffect(() => {
-    latest.current = { profile, account, demo: demo !== null }
-  }, [profile, account, demo])
+    latest.current = { profile, account, demo: demo !== null, known: saved.known }
+  }, [profile, account, demo, saved.known])
 
   const persist = useCallback(
     (next: SavedProfile) => {
@@ -71,6 +73,7 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
     setSaved(store.loadProfile())
     setLog(store.loadLog())
     setSteps(store.loadSteps())
+    setPolicySeen(store.loadPolicySeen())
   }, [store])
 
   /** After any successful sign-in: a new account starts a fresh profile, a returning one loads theirs. */
@@ -125,15 +128,26 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
   }, [saved, persist, addLog])
 
   const saveInfo = useCallback<AppState['saveInfo']>(
-    (next, changes) => {
+    (next, changes, policyChosen = []) => {
       if (demo !== null) setDemo(next)
       else {
         addLog(changes)
-        persist({ ...saved, p: next, known: [...new Set([...saved.known, ...FLOW.map((f) => f.k)])] })
+        // Coverage-type questions only count as answered once the person picks an answer, so a
+        // profile from before those questions never gets defaults treated as real answers.
+        const asked = FLOW.map((f) => f.k).filter((k) => !isPolicyField(k))
+        persist({ ...saved, p: next, known: [...new Set([...saved.known, ...asked, ...policyChosen])] })
       }
       resetChat()
     },
     [demo, saved, persist, addLog, resetChat],
+  )
+
+  const markPolicySeen = useCallback(
+    (type: PolicyType) => {
+      setPolicySeen(type)
+      if (demo === null) store.savePolicySeen(type)
+    },
+    [demo, store],
   )
 
   const toggleStep = useCallback(
@@ -160,14 +174,17 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
       setChat((m) => [...m, { id: msgId(), role: 'user', text: q }, { id: bubbleId, role: 'assistant', text: 'Thinking…' }])
       turns.current = [...turns.current, { role: 'user', content: q }]
 
-      const { profile: p, account: acct, demo: isDemo } = latest.current
+      const { profile: p, account: acct, demo: isDemo, known } = latest.current
       const canned = () => {
         setBubble({ text: fallbackAnswer(q, p), note: "Standard answer. Live answers aren't available in this view." })
         turns.current = turns.current.slice(0, -1)
       }
       const c = compute(p)
+      // Unanswered coverage-type questions are left out, so the server treats them as unanswered
+      // rather than as default answers. The example profile has them all.
+      const unanswered = isDemo ? [] : POLICY_FIELDS.filter((f) => !known.includes(f))
       const context: ChatContext = {
-        profile: p,
+        profile: Object.fromEntries(Object.entries(p).filter(([k]) => !(unanswered as string[]).includes(k))) as ChatContext['profile'],
         calculation: {
           lines: c.lines.map((l) => [l.label, l.amt]),
           total: c.total,
@@ -224,11 +241,13 @@ export function AppProvider({ children, auth = localAuth, store = localProfileSt
       updateSaved: persist,
       confirmProfile,
       saveInfo,
+      policySeen,
+      markPolicySeen,
       toggleStep,
       askChat,
       resetChat,
     }),
-    [account, demo, profile, saved, log, steps, chat, chatBusy, signUp, logIn, signInWithGoogle, leave, enterExample, persist, confirmProfile, saveInfo, toggleStep, askChat, resetChat],
+    [account, demo, profile, saved, log, steps, chat, chatBusy, signUp, logIn, signInWithGoogle, leave, enterExample, persist, confirmProfile, saveInfo, policySeen, markPolicySeen, toggleStep, askChat, resetChat],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

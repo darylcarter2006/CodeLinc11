@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
-import type { ChangeLogEntry, Profile, SavedProfile } from '../domain/profile'
+import type { PolicyType } from '../domain/policy'
+import type { ChangeLogEntry, PolicyField, Profile, SavedProfile } from '../domain/profile'
 import type { Account, AuthResult } from '../services/auth'
 import type { StepsChecked } from '../services/profileStore'
 
@@ -28,7 +29,11 @@ export interface AppState {
   enterExample(): void
   updateSaved(next: SavedProfile): void
   confirmProfile(): void
-  saveInfo(next: Profile, changes: string[]): void
+  /** `policyChosen`: coverage-type questions the person picked an answer for in this save. */
+  saveInfo(next: Profile, changes: string[], policyChosen?: PolicyField[]): void
+  /** The coverage type the result pop-up last showed (null: never shown). */
+  policySeen: PolicyType | null
+  markPolicySeen(type: PolicyType): void
   toggleStep(text: string, checked: boolean): void
   askChat(question: string): Promise<void>
   resetChat(): void

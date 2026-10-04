@@ -6,12 +6,15 @@ import {
   INT_FIELDS,
   LABEL,
   MONEY_FIELDS,
+  POLICY_CHOICES,
+  POLICY_FIELDS,
   isInt,
   showVal,
   type College,
   type Dep,
   type Field,
   type NumberField,
+  type PolicyField,
   type Profile,
 } from '../domain/profile'
 import { useApp } from '../state/context'
@@ -28,7 +31,9 @@ const DEP_OPTIONS: [Dep, string][] = [
 
 /* My info: edit anything the chat saved. Saving diffs against the stored profile and logs each change. */
 export function MyInfoPage() {
-  const { profile, isExample, log, saveInfo } = useApp()
+  const { profile, isExample, log, saveInfo, saved } = useApp()
+  // In example mode every answer is set; otherwise only the questions actually answered count.
+  const known = isExample ? [...POLICY_FIELDS] : saved.known
   const [status, setStatus] = useState<Status>({
     text: isExample ? 'Example data: changes last until you leave the example.' : 'Changes update your dashboard right away.',
     tone: 'muted',
@@ -44,7 +49,14 @@ export function MyInfoPage() {
         </div>
       </div>
       {/* Re-mount the form when the saved profile changes so inputs show the stored values. */}
-      <InfoForm key={JSON.stringify(profile)} profile={profile} status={status} setStatus={setStatus} onSave={saveInfo} />
+      <InfoForm
+        key={JSON.stringify([profile, known])}
+        profile={profile}
+        known={known}
+        status={status}
+        setStatus={setStatus}
+        onSave={saveInfo}
+      />
       {!isExample && (
         <div className="card pad spaced-lg">
           <div className="sec-head">
@@ -70,14 +82,19 @@ export function MyInfoPage() {
 
 interface FormProps {
   profile: Profile
+  known: readonly Field[]
   status: Status
   setStatus: (s: Status) => void
-  onSave: (next: Profile, changes: string[]) => void
+  onSave: (next: Profile, changes: string[], policyChosen: PolicyField[]) => void
 }
 
-function InfoForm({ profile: p, status, setStatus, onSave }: FormProps) {
+function InfoForm({ profile: p, known, status, setStatus, onSave }: FormProps) {
   const [deps, setDeps] = useState<Dep[]>(p.deps)
   const [college, setCollege] = useState<College>(p.college)
+  // '' means not answered yet: shown as "Choose…" rather than a default that would skew the result.
+  const [prefs, setPrefs] = useState(
+    () => Object.fromEntries(POLICY_FIELDS.map((k) => [k, known.includes(k) ? p[k] : ''])) as Record<PolicyField, string>,
+  )
   const [nums, setNums] = useState(() =>
     Object.fromEntries(NUMBER_FIELDS.map((k) => [k, Number(p[k] || 0).toLocaleString('en-US')])) as Record<NumberField, string>,
   )
@@ -95,6 +112,8 @@ function InfoForm({ profile: p, status, setStatus, onSave }: FormProps) {
     if (!deps.length) return error('Choose who relies on your income, or “No one right now”.')
     const ordered = DEP_OPTIONS.map(([d]) => d).filter((d) => deps.includes(d))
     const next: Profile = { ...p, deps: ordered, college }
+    const chosen = POLICY_FIELDS.filter((k) => prefs[k] !== '')
+    for (const k of chosen) (next as Record<PolicyField, string>)[k] = prefs[k]
     for (const k of NUMBER_FIELDS) {
       const raw = nums[k].replace(/[$,\s]/g, '')
       const n = Number(raw)
@@ -110,7 +129,10 @@ function InfoForm({ profile: p, status, setStatus, onSave }: FormProps) {
       setInvalid('children')
       return error('Enter how many children, or uncheck Children.')
     }
-    const changed = ([...NUMBER_FIELDS, 'deps', 'college'] as Field[]).filter((k) => JSON.stringify(next[k]) !== JSON.stringify(p[k]))
+    const newlyAnswered = chosen.filter((k) => !known.includes(k))
+    const changed = ([...NUMBER_FIELDS, 'deps', 'college', ...POLICY_FIELDS] as Field[]).filter(
+      (k) => JSON.stringify(next[k]) !== JSON.stringify(p[k]) || newlyAnswered.includes(k as PolicyField),
+    )
     if (!changed.length) return setStatus({ text: 'Nothing changed.', tone: 'error' })
     setStatus({
       text: `Saved ${changed.length} change${changed.length > 1 ? 's' : ''}. Your dashboard and breakdown are updated.`,
@@ -118,7 +140,10 @@ function InfoForm({ profile: p, status, setStatus, onSave }: FormProps) {
     })
     onSave(
       next,
-      changed.map((k) => `${LABEL[k]}: ${showVal(k, p)} → ${showVal(k, next)}`),
+      changed.map((k) =>
+        newlyAnswered.includes(k as PolicyField) ? `${LABEL[k]}: ${showVal(k, next)}` : `${LABEL[k]}: ${showVal(k, p)} → ${showVal(k, next)}`,
+      ),
+      chosen,
     )
   }
 
@@ -206,6 +231,26 @@ function InfoForm({ profile: p, status, setStatus, onSave }: FormProps) {
               {num('policies', '$')}
             </div>
             {num('savings', '$')}
+          </div>
+        </div>
+        <div className="card pad">
+          <h3>Coverage preferences</h3>
+          <div className="stack">
+            {POLICY_FIELDS.map((k) => (
+              <div className="field" key={k}>
+                <label htmlFor={`i_${k}`}>{LABEL[k]}</label>
+                <div className="in">
+                  <select id={`i_${k}`} value={prefs[k]} onChange={(e) => setPrefs({ ...prefs, [k]: e.target.value })}>
+                    {prefs[k] === '' && <option value="">Choose…</option>}
+                    {Object.entries(POLICY_CHOICES[k]).map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

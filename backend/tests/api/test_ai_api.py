@@ -289,3 +289,27 @@ def test_global_limit_caps_calls_across_all_clients(
     assert client.post("/v1/ai/extract", json=extract_body()).status_code == 200
     assert client.post("/v1/ai/extract", json=extract_body()).status_code == 200
     assert client.post("/v1/ai/extract", json=extract_body()).status_code == 429
+
+
+def test_chat_explains_the_coverage_type_only_when_answered(
+    make_client: Callable[..., TestClient],
+) -> None:
+    model = FakeModel(chunks=["ok"])
+    client = make_client(ai=model)
+    client.post("/v1/ai/chat", json=chat_body())  # MAYA has no coverage-type answers
+    answered = chat_body()
+    prefs = {"coverFor": "lifelong", "budget": "lowest", "cashValue": "yes"}
+    answered["context"]["profile"] = {**MAYA, **prefs, "legacy": "yes", "simple": "yes"}
+    client.post("/v1/ai/chat", json=answered)
+    unanswered_system, answered_system = model.calls[0][0], model.calls[1][0]
+    assert "haven't answered the five coverage-type questions" in unanswered_system
+    assert "point to permanent life insurance (2 for term, 3 for permanent)" in answered_system
+    assert "not as a product recommendation" in answered_system
+
+
+def test_extract_accepts_coverage_type_fields(make_client: Callable[..., TestClient]) -> None:
+    model = FakeModel(reply=model_reply({"coverFor": "lifelong", "budget": "cheap"}))
+    body = extract_body(askedField="coverFor", question="How long?", message="my whole life")
+    response = make_client(ai=model).post("/v1/ai/extract", json=body)
+    assert response.json()["updates"] == {"coverFor": "lifelong"}
+    assert 'coverFor ("period"' in model.calls[0][1][0].content

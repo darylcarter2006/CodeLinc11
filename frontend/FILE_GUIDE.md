@@ -24,6 +24,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 |---|---|
 | `domain/profile.ts` | The `Profile` and `SavedProfile` types, the Maya example, field labels, display helpers, and the onboarding question order with each question's condition and quick replies. |
 | `domain/needs.ts` | The needs calculation, ported exactly from the prototype: income replacement, debts, college, final expenses, the gap, the rounded starting point, range and term. Also builds the personalized tradeoff cards and next-steps checklist. |
+| `domain/policy.ts` | Coverage type: the hidden tally over the five preference questions (term vs. permanent, a tie goes to term), the reason shown for each answer, and the short description of each type. Mirrored in the backend so Chat can explain it. |
 | `domain/parse.ts` | The local answer parser (understands "85k", "2x salary", "until my youngest is 22", and so on), `clean()` to keep only valid values from the AI or the parser, and `applyUpdates()` to merge answers with the derived rules. |
 | `domain/glossary.ts` | Plain-language definitions of insurance terms (term life, whole life, cash value, laddering, group life and more) and `findTerms()`, which finds them in a sentence. |
 | `domain/explain.ts` | One-sentence explanations of the key numbers (coverage in place, estimated need, left to cover, term, range) built from the person's own values. |
@@ -31,6 +32,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `domain/glossary.test.ts`, `domain/explain.test.ts` | Unit tests for finding terms in text and for each number explanation (checked against Maya's example). |
 | `domain/needs.test.ts` | Unit tests: the three handoff test vectors, rounding and term edges, tradeoffs and next steps. |
 | `domain/parse.test.ts` | Unit tests: a table of phrases → parsed values, `clean()` rejecting bad input, and the merge rules. |
+| `domain/policy.test.ts` | Unit tests: the coverage-type tally (wins, ties, skipped questions), reasons, and parsing of typed answers like "my whole life". |
 
 ## Services (`src/services/`)
 
@@ -69,6 +71,8 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `components/Tip.tsx` | Hover/focus/tap explanations: `Term` (an insurance term with its definition), `WithTerms` (adds terms to a sentence) and `NumberInfo` (an "i" button that explains a number). Kept on screen on phones; Escape closes. |
 | `components/TradeoffCard.tsx` | Tradeoff cards, optionally with the Term/Whole comparison. |
 | `components/CallbackDialog.tsx` | The "Talk to a licensed Lincoln Financial representative" form: name, email or phone, best time, what they need help with, and an opt-in summary of their estimate and recent questions. Validates inline and says plainly when requests can't be sent yet. |
+| `components/PolicyResultDialog.tsx` | The "Your coverage type" pop-up: which type fits their answers and why, with a button to talk to a licensed representative. Opens on the dashboard the first time a result exists and again whenever it changes. |
+| `components/dialog.ts` | Shared modal helper: keeps keyboard focus inside an open dialog. |
 | `components/AccessibilityMenu.tsx` | The "Aa Display settings" menu in the top bar: text size (Default, Large, Larger), high contrast, and an easier-to-read font. Works by keyboard and closes with Escape. |
 | `components/GoogleButton.tsx` | The "Sign up / Sign in with Google" button. Shows Google's official button when a client ID is set, otherwise a look-alike that explains Google sign-in isn't set up yet. |
 
