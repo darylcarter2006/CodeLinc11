@@ -23,6 +23,7 @@ cp .env.example .env            # optional; defaults work without it
 You don't need a database or AWS credentials. Sessions are kept in memory, and a rule-based stub
 stands in for the AI model. To use PostgreSQL (local Docker or RDS), see
 [docs/database-setup.md](docs/database-setup.md).
+To deploy to AWS (ECS Express Mode), see [docs/deploy-ecs.md](docs/deploy-ecs.md).
 
 ## Checks (the same ones CI runs)
 
