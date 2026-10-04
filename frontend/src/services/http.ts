@@ -20,16 +20,22 @@ export interface RequestOptions {
   token?: string
 }
 
-/** POST JSON and return the raw Response. Network failures become HttpError(0, "network_error"). */
-export async function postJson(path: string, body: unknown, { signal, token }: RequestOptions = {}): Promise<Response> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+/** Send a request and return the raw Response. Network failures become HttpError(0, "network_error"). */
+export async function request(
+  method: 'GET' | 'POST' | 'PUT',
+  path: string,
+  body: unknown,
+  { signal, token }: RequestOptions = {},
+): Promise<Response> {
+  const headers: Record<string, string> = {}
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
   let res: Response
   try {
     res = await fetch(`${API_BASE}/v1${path}`, {
-      method: 'POST',
+      method,
       headers,
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     })
   } catch {
@@ -44,4 +50,20 @@ export async function postJson(path: string, body: unknown, { signal, token }: R
   if (res.headers.get('Content-Type')?.includes('text/html'))
     throw new HttpError(404, 'not_found', 'The API is not available at this address.')
   return res
+}
+
+/** POST JSON and return the raw Response. */
+export const postJson = (path: string, body: unknown, options: RequestOptions = {}): Promise<Response> =>
+  request('POST', path, body, options)
+
+/** Send a request and parse the JSON reply (null for an empty body such as 202/204). */
+export async function requestJson<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, options?: RequestOptions): Promise<T | null> {
+  const res = await request(method, path, body, options)
+  const text = await res.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new HttpError(502, 'bad_response', 'The server sent an unexpected reply.')
+  }
 }

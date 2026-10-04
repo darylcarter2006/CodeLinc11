@@ -60,6 +60,29 @@ class Settings(BaseSettings):
     google_hosted_domain: str | None = None
     account_token_ttl_hours: int = Field(default=168, ge=1, le=24 * 30)
     auth_rate_limit_per_minute: int = Field(default=10, ge=1)
+    # Log-in attempts per email address (any client), so one account can't be guessed at
+    # from many IP addresses.
+    login_attempts_per_email: int = Field(default=10, ge=1)
+    login_attempt_window_minutes: int = Field(default=15, ge=1)
+
+    # --- Password reset email ---
+    # "none": reset is off (503). "outbox": local only, prints the email to the console.
+    # "ses": Amazon SES; needs EMAIL_FROM (a verified SES identity) and APP_BASE_URL.
+    email_provider: Literal["none", "outbox", "ses"] = "none"
+    email_from: str | None = None
+    ses_region: str = "us-east-2"
+    # The front end's address; reset links point to {APP_BASE_URL}/reset-password.
+    app_base_url: str | None = None
+    password_reset_ttl_minutes: int = Field(default=30, ge=5, le=24 * 60)
+    # Reset emails per address, and reset requests per client IP.
+    reset_emails_per_hour: int = Field(default=3, ge=1)
+    reset_requests_per_hour: int = Field(default=10, ge=1)
+    # Callback requests ("talk to a licensed representative"): per IP and across everyone.
+    support_rate_limit_per_hour: int = Field(default=5, ge=1)
+    support_global_rate_limit_per_hour: int = Field(default=200, ge=1)
+    # The original Planner session API (/v1/sessions...). The current front end doesn't use it,
+    # and its unauthenticated POST /v1/sessions writes to the database, so it's off by default.
+    planner_api_enabled: bool = False
 
     session_ttl_hours: int = Field(default=4, ge=1, le=72)
     session_turn_limit: int = Field(default=40, ge=1)
@@ -111,6 +134,31 @@ class Settings(BaseSettings):
         key = self.anthropic_api_key.get_secret_value().strip() if self.anthropic_api_key else ""
         if self.ai_provider == "anthropic" and not key:
             raise ValueError("AI_PROVIDER=anthropic requires ANTHROPIC_API_KEY")
+        return self
+
+    @field_validator("email_from", "app_base_url", mode="before")
+    @classmethod
+    def _blank_email_setting(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("app_base_url")
+    @classmethod
+    def _base_url_shape(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip().rstrip("/")
+        if not value.startswith(("https://", "http://localhost", "http://127.0.0.1")):
+            raise ValueError("APP_BASE_URL must be an https:// address (or localhost)")
+        return value
+
+    @model_validator(mode="after")
+    def _email_settings(self) -> Settings:
+        if self.email_provider == "outbox" and self.env not in ("local", "test", "dev"):
+            raise ValueError("EMAIL_PROVIDER=outbox prints reset links; use it only locally")
+        if self.email_provider != "none" and not self.app_base_url:
+            raise ValueError("Password reset email needs APP_BASE_URL (the front end's address)")
+        if self.email_provider == "ses" and not self.email_from:
+            raise ValueError("EMAIL_PROVIDER=ses needs EMAIL_FROM (a verified SES identity)")
         return self
 
     @field_validator("db_ssl_root_cert")

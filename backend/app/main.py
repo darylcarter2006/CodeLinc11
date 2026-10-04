@@ -8,11 +8,23 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import ai, assessments, auth, content, health, messages, profiles, sessions
+from app.api import (
+    account,
+    ai,
+    assessments,
+    auth,
+    content,
+    health,
+    messages,
+    profiles,
+    sessions,
+    support,
+)
 from app.container import Container, build_container
 from app.logging_config import configure_logging
 from app.middleware.error_handlers import register_error_handlers
 from app.middleware.request_context import REQUEST_ID_HEADER, RequestContextMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.settings import Settings, get_settings
 
 
@@ -31,15 +43,16 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     if settings.env != "test":
         configure_logging(settings.log_level)
 
+    show_docs = settings.env in ("local", "test", "dev")
     app = FastAPI(
         title="Life-insurance needs analyzer API",
         version="0.1.0",
         description="Planning estimates only: not a quote, underwriting decision, "
         "or product recommendation.",
-        # Interactive docs only outside production.
-        docs_url=None if settings.env == "prod" else "/docs",
+        # Interactive docs only on a developer's machine, never on a deployed service.
+        docs_url="/docs" if show_docs else None,
         redoc_url=None,
-        openapi_url=None if settings.env == "prod" else "/openapi.json",
+        openapi_url="/openapi.json" if show_docs else None,
         lifespan=_lifespan(container),
     )
     app.state.container = container
@@ -47,8 +60,12 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     register_error_handlers(app)
 
     v1 = APIRouter(prefix="/v1")
-    for module in (health, auth, sessions, profiles, messages, assessments, content, ai):
+    for module in (health, auth, account, ai, support):
         v1.include_router(module.router)
+    if settings.planner_api_enabled:
+        # The original Planner session API; the current front end doesn't call it.
+        for module in (sessions, profiles, messages, assessments, content):
+            v1.include_router(module.router)
     app.include_router(v1)
 
     app.add_middleware(
@@ -62,6 +79,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     )
     # Added last so it runs outermost: every response, including CORS rejections,
     # 413s and 500s, gets an X-Request-ID.
+    app.add_middleware(SecurityHeadersMiddleware, hsts=settings.env in ("demo", "prod"))
     app.add_middleware(RequestContextMiddleware, max_body_bytes=settings.max_body_bytes)
     return app
 

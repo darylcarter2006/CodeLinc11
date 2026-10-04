@@ -206,13 +206,49 @@ Optional settings (plain environment variables): `AI_MODEL_FAST` / `AI_MODEL_SMA
 (`aws secretsmanager put-secret-value ...`), then redeploy (running tasks keep the old value
 until they restart), then delete the old key.
 
-## 10. When the hackathon is over
+## 10. Switch on password reset email (Amazon SES)
+
+Email and password accounts work without this; only **Forgot password?** needs it (until then it
+says reset isn't set up). The app sends through Amazon SES using the task's own IAM role, so no
+email password or key is stored anywhere. Do these in **us-east-2**.
+
+1. **Verify a sender address.** **SES → Identities → Create identity → Email address**, enter the
+   address the emails should come from, and click the link SES emails to it. (A domain you
+   control is better for deliverability than a Gmail address; any verified address works.)
+2. **Get out of the SES sandbox.** New accounts can only send *to* verified addresses (and 200 a
+   day). Either verify each teammate's address the same way for the demo, or **SES → Account
+   dashboard → Request production access** (transactional, password-reset emails only, low
+   volume). Approval usually takes about a day.
+3. **Give the service a role that can send** (replace `SENDER` with the address from step 1):
+   ```bash
+   aws iam create-role --role-name coverage-compass-task-role --assume-role-policy-document \
+     '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+   aws iam put-role-policy --role-name coverage-compass-task-role --policy-name send-password-reset-email \
+     --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"ses:SendEmail","Resource":"arn:aws:ses:us-east-2:231161110378:identity/*","Condition":{"StringEquals":{"ses:FromAddress":"SENDER"}}}]}'
+   ```
+   Then let CI deploys keep using it: in the IAM user `github-actions-coverage-compass-deploy`,
+   policy `deploy-coverage-compass-backend`, add
+   `arn:aws:iam::231161110378:role/coverage-compass-task-role` to the `PassOnlyTheServiceRoles`
+   statement's `Resource` list.
+4. **Update the service** (**ECS → the service → Update service**), keeping everything else:
+   - **Task role:** `coverage-compass-task-role`;
+   - add environment variables `EMAIL_PROVIDER=ses`, `EMAIL_FROM=<the sender address>`, and
+     `APP_BASE_URL=https://main.d2g8j1b83mvwk9.amplifyapp.com` (where reset links point).
+5. **Check it:** on the deployed site, **Log in → Forgot password?** with a verified address. The
+   email arrives within a minute; its link opens **Choose a new password**. Failures are logged
+   as `email_failed` (with the error type only, never the address).
+
+Optional: `PASSWORD_RESET_TTL_MINUTES` (30), `RESET_EMAILS_PER_HOUR` per address (3),
+`RESET_REQUESTS_PER_HOUR` per IP (10), `LOGIN_ATTEMPTS_PER_EMAIL` (10 per 15 minutes).
+
+## 11. When the hackathon is over
 
 Delete the Express service (this also removes its load balancer), then delete the ECR images
 and the secret if they're no longer needed. Stop RDS too if nobody is using it. Also delete the
 IAM user `github-actions-coverage-compass-deploy` and the two GitHub secrets, delete the
 `coverage-compass/anthropic-api-key` secret, revoke the key in the Anthropic console, and disable the
-`backend-deploy` workflow.
+`backend-deploy` workflow. If you set up step 10, delete `coverage-compass-task-role` and the SES
+identities.
 
 ## Troubleshooting
 

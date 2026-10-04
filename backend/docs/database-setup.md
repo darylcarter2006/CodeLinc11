@@ -95,7 +95,7 @@ Alembic reads environment variables, not `.env`, so export the file first:
 ```bash
 set -a; source .env; set +a
 .venv/bin/alembic upgrade head
-.venv/bin/alembic current        # should print: 0002 (head)
+.venv/bin/alembic current        # should print the newest revision, marked (head)
 ```
 
 Only one person needs to run this after each new migration. It is safe to run again.

@@ -18,7 +18,8 @@ cp .env.example .env            # optional; defaults work without it
 ```
 
 - API: http://localhost:8000/v1
-- Interactive docs (OpenAPI): http://localhost:8000/docs
+- Interactive docs (OpenAPI): http://localhost:8000/docs (only when `ENV` is `local`, `test` or
+  `dev`; a deployed service hides them)
 
 You don't need a database or AWS credentials. Sessions are kept in memory, and a rule-based stub
 stands in for the AI model. To use PostgreSQL (local Docker or RDS), see
@@ -69,6 +70,25 @@ tests/
 |---|---|---|
 | GET | `/v1/health` | Liveness only |
 | GET | `/v1/ready` | Readiness (session store reachable) |
+| POST | `/v1/auth/signup` | Create an email and password account → account token (201) |
+| POST | `/v1/auth/login` | Log in with email and password → account token |
+| POST | `/v1/auth/google` | Sign in with a Google ID token → account token (see [docs/google-oauth-setup.md](docs/google-oauth-setup.md)) |
+| GET | `/v1/auth/me` | The signed-in user (account token) |
+| POST | `/v1/auth/password` | Change password (signed in); signs out other devices (204) |
+| POST | `/v1/auth/password-reset/request` | Email a reset link if the address has an account; always 202 |
+| POST | `/v1/auth/password-reset/confirm` | Set a new password from a reset link → account token |
+| POST | `/v1/auth/logout` | Revoke the account token (204) |
+| GET / PUT | `/v1/account/profile` | The signed-in person's saved answers, change log and checklist |
+| POST | `/v1/ai/extract` | Coverage Compass onboarding: pull profile fields from one answer |
+| POST | `/v1/ai/chat` | Coverage Compass chat: streamed `text/plain` answer |
+| POST | `/v1/support/callback-requests` | Ask a licensed representative to follow up (201) |
+
+The original Planner session API below is **off by default** (`PLANNER_API_ENABLED=false`): the
+current front end doesn't use it, and it lets anyone create database rows without signing in.
+Turn it on only for local work on that API (the test suite turns it on).
+
+| Method | Path | Purpose |
+|---|---|---|
 | POST | `/v1/sessions` | Create anonymous session → `session_id`, `access_token`, `expires_at` |
 | GET | `/v1/sessions/{id}` | Profile, next question, live assessment, turn count |
 | DELETE | `/v1/sessions/{id}` | Delete session and all its data (204) |
@@ -79,11 +99,46 @@ tests/
 | GET | `/v1/sessions/{id}/assessments/latest` | Latest saved, with `is_current` / `stale_reason` |
 | POST | `/v1/sessions/{id}/scenarios` | What-if overrides; nothing saved |
 | GET | `/v1/content/coverage-types` | Term vs permanent education copy |
-| POST | `/v1/auth/google` | Sign in with a Google ID token → account token (see [docs/google-oauth-setup.md](docs/google-oauth-setup.md)) |
-| GET | `/v1/auth/me` | The signed-in user (account token) |
-| POST | `/v1/auth/logout` | Revoke the account token (204) |
-| POST | `/v1/ai/extract` | Coverage Compass onboarding: pull profile fields from one answer |
-| POST | `/v1/ai/chat` | Coverage Compass chat: streamed `text/plain` answer |
+
+### Accounts
+
+- **Passwords** are hashed with Argon2id (`app/security/passwords.py`, OWASP settings) and never
+  logged or returned. Rules: 8 to 128 characters, not a very common password, not the email.
+  Emails are trimmed and lowercased, and unique across accounts.
+- **Log-in** gives one answer for a wrong email or a wrong password, and takes as long either way.
+  Limits: `AUTH_RATE_LIMIT_PER_MINUTE` per IP (10) and `LOGIN_ATTEMPTS_PER_EMAIL` per address
+  (10 per 15 minutes).
+- **Account tokens** are 32 random bytes; only their SHA-256 hash is stored. They last
+  `ACCOUNT_TOKEN_TTL_HOURS` (168). Changing or resetting a password revokes the others.
+- **Password reset** (`EMAIL_PROVIDER=ses`, see [docs/deploy-ecs.md](docs/deploy-ecs.md) step 10):
+  a single-use link valid for 30 minutes, stored as a hash. The request always answers 202 and
+  sends in the background, so it never reveals whether an address has an account. Locally,
+  `EMAIL_PROVIDER=outbox` with `APP_BASE_URL=http://localhost:5173` prints the email to the
+  console instead (refused outside local/test/dev).
+- **Google and passwords on one email:** signing in with Google links to the account with the same
+  email. If that account's password was set by someone who never proved they own the address
+  (no reset link used yet), Google sign-in removes that password and signs out its sessions.
+  A Google-only account adds a password through "Forgot password?".
+- **Saved state** (`/v1/account/profile`) is validated field by field (same bounds as the AI
+  endpoints), capped at 50 log entries and 20 checklist items, and only ever readable with that
+  account's token.
+
+### Callback requests
+
+`POST /v1/support/callback-requests` backs the front end's "Talk to a licensed Lincoln Financial
+representative" form (contract in `app/contracts/support.py`). Signing in is optional; with a
+valid account token the request is linked to the account. Requests are stored in
+`callback_requests` (migration 0004). The server rejects anything that looks like a Social
+Security number or a 10+ digit account or card number, checks that the contact matches the
+chosen method, and never logs the contact details. Limits: `SUPPORT_RATE_LIMIT_PER_HOUR` per
+client IP (default 5) and `SUPPORT_GLOBAL_RATE_LIMIT_PER_HOUR` across everyone (default 200).
+
+### Security headers
+
+Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+`Cache-Control: no-store`, `Referrer-Policy: no-referrer` and a `default-src 'none'`
+Content-Security-Policy (`app/middleware/security_headers.py`). With `ENV=demo` or `prod` it
+also sends HSTS. The front end's headers are in `customHttp.yml` at the repo root (Amplify).
 
 ### Coverage Compass AI endpoints
 

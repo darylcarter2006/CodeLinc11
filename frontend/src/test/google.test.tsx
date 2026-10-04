@@ -4,12 +4,9 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import { AppProvider } from '../state/AppContext'
+import { installFakeServer } from './fakeServer'
 
 const CLIENT = 'test-client.apps.googleusercontent.com'
-
-const b64url = (v: unknown) => btoa(JSON.stringify(v)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-const token = (claims: Record<string, unknown>) =>
-  [b64url({ alg: 'RS256' }), b64url({ iss: 'accounts.google.com', aud: CLIENT, exp: Date.now() / 1000 + 600, email_verified: true, ...claims }), 'sig'].join('.')
 
 // Stand-in for Google's script: renderButton draws a button that "signs in" with `nextToken`.
 let nextToken = ''
@@ -32,8 +29,9 @@ beforeAll(() => {
   }
 })
 
+// The fake backend accepts credentials of the form "good:<sub>:<email>" (the real one verifies Google's signature).
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })))
+  installFakeServer()
 })
 
 afterEach(() => {
@@ -62,7 +60,7 @@ describe('Google sign-in', () => {
   it('creates an account, and a returning user keeps their saved answers', async () => {
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', CLIENT)
     const user = userEvent.setup()
-    nextToken = token({ email: 'ada@example.com', given_name: 'Ada' })
+    nextToken = 'good:sub-ada:ada@example.com'
     const { unmount } = renderApp()
 
     await user.click(await screen.findByRole('button', { name: 'Google account' }))
@@ -76,12 +74,23 @@ describe('Google sign-in', () => {
     unmount()
   })
 
-  it('rejects a token meant for another app', async () => {
+  it('shows an error when the server rejects the Google token', async () => {
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', CLIENT)
     const user = userEvent.setup()
-    nextToken = token({ email: 'ada@example.com', aud: 'another-app' })
+    nextToken = 'forged-or-expired-token'
     renderApp()
     await user.click(await screen.findByRole('button', { name: 'Google account' }))
     expect(await screen.findByText(/Google sign-in didn't work\./)).toHaveAttribute('role', 'alert')
+  })
+
+  it('never signs in without the server, even with a well-formed token', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', CLIENT)
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('offline'))))
+    const user = userEvent.setup()
+    nextToken = 'good:sub-ada:ada@example.com'
+    renderApp()
+    await user.click(await screen.findByRole('button', { name: 'Google account' }))
+    expect(await screen.findByText(/couldn't reach Coverage Compass/)).toHaveAttribute('role', 'alert')
+    expect(screen.queryByText(/Hi Ada!/)).not.toBeInTheDocument()
   })
 })

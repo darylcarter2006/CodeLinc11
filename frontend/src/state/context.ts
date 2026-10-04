@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { PolicyType } from '../domain/policy'
 import type { ChangeLogEntry, PolicyField, Profile, SavedProfile } from '../domain/profile'
-import type { Account, AuthResult } from '../services/auth'
+import type { Account, ActionResult, AuthResult } from '../services/auth'
 import type { StepsChecked } from '../services/profileStore'
 
 export interface ChatMessage {
@@ -11,6 +11,9 @@ export interface ChatMessage {
   /** Small source note under an assistant answer, e.g. for canned answers. */
   note?: string
 }
+
+/** The signed-in person's saved state: not signed in, loading from the server, loaded, or failed to load. */
+export type ProfileStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 export interface AppState {
   account: Account | null
@@ -22,9 +25,20 @@ export interface AppState {
   steps: StepsChecked
   chat: ChatMessage[]
   chatBusy: boolean
-  signUp(name: string, email: string, password: string): AuthResult
-  logIn(email: string, password: string): AuthResult
+  profileStatus: ProfileStatus
+  /** Try loading the saved state again after an error. */
+  retryLoad(): void
+  /** The latest change hasn't reached the server yet (it keeps retrying). */
+  saveFailed: boolean
+  /** A message for the sign-in page, e.g. after a sign-in expires. */
+  notice: string | null
+  signUp(name: string, email: string, password: string): Promise<AuthResult>
+  logIn(email: string, password: string): Promise<AuthResult>
   signInWithGoogle(credential: string): Promise<AuthResult>
+  requestPasswordReset(email: string): Promise<ActionResult>
+  /** Set a new password from a reset link, and sign in. */
+  resetPassword(token: string, password: string): Promise<AuthResult>
+  changePassword(current: string, next: string): Promise<ActionResult>
   leave(): void
   enterExample(): void
   updateSaved(next: SavedProfile): void

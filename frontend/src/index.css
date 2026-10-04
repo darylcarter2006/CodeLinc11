@@ -59,9 +59,10 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 /* Header */
 .topbar { background: var(--navy); color: var(--on-navy); border-bottom: 4px solid var(--orange); }
 header { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 16px; max-width: 1240px; margin: 0 auto; padding: 18px 16px; }
-.mark { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; flex: 1 1 260px; min-width: 0; }
-.mark h1 { font-size: 1.875rem; font-weight: 600; color: var(--on-navy); }
-.tag { font-size: 0.8125rem; color: var(--accent-soft); }
+.mark { display: flex; align-items: center; gap: 12px; flex: 1 1 260px; min-width: 0; }
+.mark .logo { flex: none; width: 44px; height: 44px; object-fit: contain; }
+.mark h1 { font-size: 1.75rem; line-height: 1.1; font-weight: 600; color: var(--on-navy); }
+.tag { display: block; font-size: 0.8125rem; color: var(--accent-soft); }
 .hdr-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 .tabs { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .tab { background: transparent; border: 1px solid #4a5f80; border-radius: var(--r-sm); color: #d5dde9; font-weight: 600; font-size: 0.875rem; padding: 8px 16px; white-space: nowrap; text-decoration: none; }
@@ -72,6 +73,8 @@ header { display: flex; flex-wrap: nowrap; align-items: center; justify-content:
 .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--navy); display: grid; place-items: center; font-weight: 700; font-size: 0.8125rem; }
 @media (max-width: 600px) {
   header { flex-wrap: wrap; }
+  .mark h1 { font-size: 1.5rem; }
+  .mark .logo { width: 36px; height: 36px; }
   .tab { padding: 7px 12px; font-size: 0.8125rem; }
 }
 
@@ -254,6 +257,17 @@ tr.sub td { color: var(--teal); font-weight: 600; }
 .status-muted { color: var(--muted); font-size: 0.875rem; }
 .status-error { color: var(--accent); font-size: 0.875rem; }
 .status-ok { color: var(--teal); font-size: 0.875rem; }
+
+/* Accounts: notices, loading, password reset and change password */
+.notice, .save-banner { background: var(--accent-tint); border: 1px solid var(--accent-soft); border-radius: var(--r-sm); color: var(--ink); font-size: 0.875rem; padding: 10px 14px; margin: 0 0 16px; }
+.pending { max-width: 520px; margin: 48px auto; text-align: center; }
+.pending h2 { color: var(--brand); font-size: 1.375rem; margin-bottom: 8px; }
+.narrow { max-width: 480px; margin: 32px auto; }
+.narrow h2 { color: var(--brand); font-size: 1.625rem; margin: 6px 0 12px; }
+.forgot { align-self: flex-start; margin-top: -6px; }
+.account-form { max-width: 420px; margin-top: 16px; }
+.account-form h3 { font-size: 1.125rem; color: var(--brand); }
+.account-form .btn { align-self: flex-start; }
 .log { list-style: none; margin: 0; padding: 0; font-size: 0.875rem; }
 .log li { padding: 8px 0; border-bottom: 1px solid var(--line); }
 .log time { color: var(--muted); font-size: 0.8125rem; margin-right: 8px; }

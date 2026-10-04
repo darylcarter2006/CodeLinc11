@@ -12,10 +12,10 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-The app works fully without the backend: sign-up, profile and change log live in this browser,
-onboarding uses the local parser, and Chat uses standard answers. When the backend's AI endpoints
-exist (below), live answers turn on with no frontend change. In dev, Vite proxies `/v1/*` to
-`http://localhost:8000`; override with `API_PROXY_TARGET=http://localhost:8001 npm run dev`.
+Accounts and saved answers live on the backend, so run it too (`backend/README.md`; no database
+or keys needed locally). Without the backend you can still use **Explore with example data**. Without
+the AI model, onboarding uses the local parser and Chat uses standard answers. In dev, Vite proxies
+`/v1/*` to `http://localhost:8000`; override with `API_PROXY_TARGET=http://localhost:8001 npm run dev`.
 
 ## Checks (the same ones CI runs)
 
@@ -32,7 +32,7 @@ npm run build        # tsc -b && vite build
 - **No model keys or prompts in the browser.** The frontend calls backend endpoints; the server
   owns the system prompts.
 - **Auth and storage sit behind interfaces** (`services/auth.ts`, `services/profileStore.ts`).
-  The current implementations use `localStorage` and never store passwords.
+  See "Accounts" below for what is stored where.
 - Light theme only. Money uses full dollars wherever it's explained, compact ($1.43M) on tiles.
 
 ## Display settings (accessibility)
@@ -67,10 +67,27 @@ returns an account token. That token is stored in this browser and revoked on si
 needs the same client ID in `backend/.env` as `GOOGLE_CLIENT_ID`; see
 [../backend/docs/google-oauth-setup.md](../backend/docs/google-oauth-setup.md).
 
-**Without a backend** (404, unreachable, or the backend has no client ID), the browser falls back to
-reading the token's name and email itself (checking issuer, audience, expiry and verified email,
-but **not** the signature). That creates a browser-only account, just like the email form, and is
-never trusted by the server. If the backend actively rejects a token (401), there is no fallback.
+Without a backend there is no Google sign-in: the browser never trusts a Google token on its own.
+
+## Accounts
+
+- **Email and password** go to `POST /v1/auth/signup` and `/v1/auth/login`. The server stores only
+  an Argon2id hash, gives the same answer for a wrong email or a wrong password, and limits
+  attempts per address and per IP.
+- **Forgot password?** on the log-in tab asks `POST /v1/auth/password-reset/request` to email a
+  single-use link (30 minutes) to `/reset-password#token=...`. The page reads the token, removes it
+  from the address bar, and `POST /v1/auth/password-reset/confirm` sets the password and signs in.
+  Resetting or changing the password signs out every other device.
+- **Change password** is in My info (accounts that sign in only with Google add a password through
+  "Forgot password?" instead, which proves they own the email).
+- **What the browser keeps:** only `cc-auth` (the account token, its expiry, and the name and
+  email to show) and `cc-preferences`. The profile, change log, checklist and coverage-type pop-up
+  state are loaded from `GET /v1/account/profile` after sign-in, kept in memory, and saved with
+  `PUT /v1/account/profile` after every change; sign-out leaves nothing behind. If a save fails, a
+  banner says so and it retries.
+- **Older browser-only data:** the first time someone signs up or logs in with the same email the
+  earlier version used, that saved profile moves into their account, and the old `cc-*` keys are
+  removed either way.
 
 ## Deploying to AWS Amplify
 

@@ -9,7 +9,7 @@ const TABS = [
   ['/chat', 'Chat'],
 ] as const
 
-/* Navy top bar (wordmark, tabs, account button), the page, and the standing footer note. */
+/* Navy top bar (Lincoln Financial mark, wordmark, tabs, account button), the page, and the standing footer note. */
 export function Layout() {
   const state = useApp()
   const navigate = useNavigate()
@@ -26,8 +26,12 @@ export function Layout() {
       <div className="topbar">
         <header>
           <div className="mark">
-            <h1>Coverage Compass</h1>
-            <span className="tag">Life insurance needs analyzer · codeLinc 11, Path 2 concept</span>
+            {/* Official Lincoln Financial portrait mark, shown unaltered (no recoloring or stretching). */}
+            <img className="logo" src="/icon-192.png" width={44} height={44} alt="Lincoln Financial" />
+            <div>
+              <h1>Coverage Compass</h1>
+              <span className="tag">Life insurance needs analyzer from Lincoln Financial</span>
+            </div>
           </div>
           <div className="hdr-right">
             <AccessibilityMenu />
@@ -53,6 +57,11 @@ export function Layout() {
       </div>
       <div className="wrap">
         <main>
+          {state.saveFailed && (
+            <p className="save-banner" role="status">
+              Your latest changes haven't been saved to your account yet. We'll keep trying; check your connection.
+            </p>
+          )}
           <Outlet />
         </main>
         <footer>
