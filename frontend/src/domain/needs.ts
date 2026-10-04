@@ -119,7 +119,7 @@ export function tradeoffs(p: Profile, c: Calculation): Tradeoff[] {
     body:
       `About ${temp}% of your need is income and debt that shrink over time. Term life covers a set number of years and buys the most coverage per dollar, which fits that shape. Whole life lasts your entire life and builds cash value, but often costs many times more for the same amount.` +
       (hasDep(p, 'relative')
-        ? ' Because a parent or relative relies on you, a small permanent policy alongside term may be worth a look.'
+        ? ' Because a parent or relative relies on you, some people also look at a small permanent policy alongside term.'
         : ' Some people pair a large term policy with a small permanent one for final expenses.'),
     pair: [
       ['Term', `${short(c.suggested)} for ${c.term} years. Lower cost, ends on schedule.`],
@@ -187,10 +187,10 @@ export function tradeoffs(p: Profile, c: Calculation): Tradeoff[] {
 
 export function nextSteps(p: Profile, c: Calculation): string[] {
   const s: string[] = []
-  if (c.gap > 0) s.push(`Compare term quotes for about ${short(c.suggested)} over ${c.term} years`)
+  if (c.gap > 0) s.push(`Review the ${short(c.suggested)}, ${c.term}-year estimate with a licensed Lincoln Financial representative`)
   if (p.group > 0) s.push('Ask HR whether your work coverage can be converted or kept if you leave')
   if (p.group > 0 || p.policies > 0) s.push('Check the beneficiaries on your existing coverage')
-  if (laddering(p, c)) s.push('Price one policy vs. two shorter, laddered policies')
+  if (laddering(p, c)) s.push('Learn how one policy compares with two shorter, laddered policies')
   s.push('Update My info after a new child, home or job')
   return s
 }

@@ -190,7 +190,7 @@ Response: `{ updates: Partial<Profile>, ack: string, answer: string }`. Treat al
 
 - Header: eyebrow "Welcome back, {name}" (or "Example dashboard"), title "Your coverage at a glance", "Last updated {date}", buttons **Edit my info** and **Ask about my coverage**.
 - Example mode shows a banner: "You're viewing an example for Maya, 34…"
-- Four tiles, each with a colored top border: Coverage in place (teal; "N% of the estimated need"), Estimated need (dark blue), Left to cover (orange value; "Starting point $X"), Suggested term (blue; "Matches your longest need (N yrs)").
+- Four tiles, each with a colored top border: Coverage in place (teal; "N% of the estimated need"), Estimated need (dark blue), Left to cover (orange value; "Starting point $X"), Term that matches your needs (blue; "Matches your longest need (N yrs)").
 - Left column:
   - **Your coverage today**: a meter bar (in place = teal, left to cover = orange) with a legend, then three source rows. Coverage through work gets the pill "Tied to your job" (orange), plus "It usually ends if you change jobs." Policies you own: "Stays with you" (teal) or "None yet". Savings you counted: "Counted" / "Not counted".
   - **What the need is made of**: a stacked bar of c1–c4 with a legend, plus a "See the math" link → Breakdown.
@@ -200,11 +200,11 @@ Response: `{ updates: Partial<Profile>, ack: string, answer: string }`. Treat al
   - **Your situation** (who relies on you, children, income, years of support, mortgage, other debts) with an Edit link → My info.
   - A teal note: "This dashboard is an educational estimate built from your answers. It isn't a quote or a record of your actual policies."
 
-Next-steps rules: if gap > 0, "Compare term quotes for about {suggested} over {term} years". If group > 0, "Ask HR whether your work coverage can be converted or kept if you leave". If group or policies > 0, "Check the beneficiaries on your existing coverage". If mortgage > 0, years > 0 and |mortgageYears − years| ≥ 5, "Price one policy vs. two shorter, laddered policies". Always: "Update My info after a new child, home or job".
+Next-steps rules: if gap > 0, "Review the {suggested}, {term}-year estimate with a licensed Lincoln Financial representative". If group > 0, "Ask HR whether your work coverage can be converted or kept if you leave". If group or policies > 0, "Check the beneficiaries on your existing coverage". If mortgage > 0, years > 0 and |mortgageYears − years| ≥ 5, "Learn how one policy compares with two shorter, laddered policies". Always: "Update My info after a new child, home or job".
 
 ### 4. Breakdown
 
-- **Headline card**: eyebrow "A reasonable starting point" (prefixed "Example result · " in example mode), the big figure (`suggested`), "Comfortable range low – high", and on the right: Suggested term, Total need, Already in place. Below that, a teal note: "You're not starting from zero. What you already have covers about N% of the need. This estimate is a starting point you can adjust, not a verdict."
+- **Headline card**: eyebrow "A reasonable starting point" (prefixed "Example result · " in example mode), the big figure (`suggested`), "Estimate range low – high", and on the right: Term that matches your needs, Total need, Already in place. Below that, a teal note: "You're not starting from zero. What you already have covers about N% of the need. This estimate is a starting point you can adjust, not a verdict."
 - **How we got here**: two bars on the same scale ("What the need is made of" c1–c4, and "How it's covered" in place vs. left to cover), each direct-labeled, with hover tooltips. Then a table with each line, its "how" formula, its amount, and a **Why?** button (→ Chat tab with "Why is "{line}" in my estimate, and how was it calculated?"). After that: Total need, minus what's already in place (work + personal + savings), left to cover ("Rounded up to the nearest $25,000: $X"). An orange assumptions note sits below the table.
 - **Tradeoffs for your situation**: cards generated from rules (port prototype `tradeoffs()` exactly):
   - Term vs. whole (always): the share of the need that is income + debt, why term fits that shape, and that whole life costs much more. Add a different last sentence when a relative depends on them. Shows a Term/Whole mini comparison.
@@ -231,7 +231,7 @@ Next-steps rules: if gap > 0, "Compare term quotes for about {suggested} over {t
 ### 6. Chat (free-form Q&A grounded in their saved coverage)
 
 - Left: a "What I know about your coverage" card (through work, policies, savings, in place (teal), estimated need, left to cover (orange), suggested term) and an "Edit my info" link.
-- Right: chat with "New chat", input, and suggested questions built from their data: "What happens to my $156K work coverage if I change jobs?" (if group), "Is $176K enough for my family?", "Term or whole life for me?", "Should I split this into two policies?" (if laddering applies), "Should I count my savings?" (if savings).
+- Right: chat with "New chat", input, and suggested questions built from their data: "What happens to my $156K work coverage if I change jobs?" (if group), "How does $176K compare with the estimate?", "Term or whole life for me?", "How would two policies compare?" (if laddering applies), "What changes if I count my savings?" (if savings).
 - Opening message summarizes their coverage in one sentence.
 - Send the last 8 turns plus this standing instruction to the **chat endpoint** and stream the reply:
 
@@ -249,6 +249,8 @@ Calculation: {lines, total, gap, suggested, termYears}
 ```
 
 - If the AI is unavailable, fall back to the canned answers in prototype `FALLBACK` (keyword-matched) with the note "Standard answer. Live answers aren't available in this view." Errors: on rate limiting, show "That's a lot of questions at once. Try again in a minute."; otherwise "I couldn't finish that answer. Try asking again." Never retry automatically.
+
+**Education, not recommendation (updated October 3, 2026).** Screen copy explains the estimate rather than steering people to a product: next steps point to learning and to a licensed Lincoln Financial representative instead of "compare quotes"; the term tile reads "Term that matches your needs", the range "Estimate range"; Chat suggestions ask how numbers compare rather than "should I"; and the standard answers avoid "fits best" in favor of how people commonly approach a choice.
 
 ## Design
 

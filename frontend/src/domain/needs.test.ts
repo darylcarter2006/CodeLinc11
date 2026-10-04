@@ -111,10 +111,10 @@ describe('tradeoffs and next steps', () => {
 
   it('lists next steps from the rules', () => {
     expect(nextSteps(EXAMPLE, compute(EXAMPLE))).toEqual([
-      'Compare term quotes for about $1.43M over 30 years',
+      'Review the $1.43M, 30-year estimate with a licensed Lincoln Financial representative',
       'Ask HR whether your work coverage can be converted or kept if you leave',
       'Check the beneficiaries on your existing coverage',
-      'Price one policy vs. two shorter, laddered policies',
+      'Learn how one policy compares with two shorter, laddered policies',
       'Update My info after a new child, home or job',
     ])
   })

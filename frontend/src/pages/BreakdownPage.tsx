@@ -156,7 +156,7 @@ function Headline({ p, c, isExample }: { p: Profile; c: Calculation; isExample: 
             {fmt(c.suggested)} <NumberInfo label="the starting point" explanation={explainLeft(c)} testId="info-suggested" />
           </div>
           <div className="muted small">
-            Comfortable range{' '}
+            Estimate range{' '}
             <b className="num ink">
               {fmt(c.low)} – {fmt(c.high)}
             </b>
@@ -165,7 +165,7 @@ function Headline({ p, c, isExample }: { p: Profile; c: Calculation; isExample: 
         </div>
         <div className="facts">
           <span>
-            Suggested term <b>{c.term} years</b> <NumberInfo label="the suggested term" explanation={explainTerm(p, c)} testId="info-term" />
+            Term that matches your needs <b>{c.term} years</b> <NumberInfo label="the matching term" explanation={explainTerm(p, c)} testId="info-term" />
           </span>
           <span>
             Total need <b>{fmt(c.total)}</b> <NumberInfo label="the total need" explanation={explainNeed(c)} testId="info-total" />

@@ -13,13 +13,13 @@ const FALLBACK: [RegExp, (p: Profile) => string][] = [
   [
     /term|whole/i,
     () =>
-      'Term life covers a set number of years at a lower cost. Whole life lasts your lifetime and builds cash value, but costs much more for the same amount. When most of your need fades over time, term usually fits best.',
+      'Term life covers a set number of years at a lower cost. Whole life lasts your lifetime and builds cash value, but costs much more for the same amount. When most of a need fades over time, many people look at term first. A licensed professional can help you weigh both.',
   ],
   [
-    /enough/i,
+    /enough|compare with the estimate/i,
     (p) => {
       const c = compute(p)
-      return `You have ${fmt(c.existing)} in place against an estimated need of ${fmt(c.total)}, about ${Math.round((c.existing / c.total) * 100)}% of it. A reasonable starting point for added coverage is ${fmt(c.suggested)}.`
+      return `You have ${fmt(c.existing)} in place against an estimated need of ${fmt(c.total)}, about ${Math.round((c.existing / c.total) * 100)}% of it. The estimate's starting point for added coverage is ${fmt(c.suggested)}.`
     },
   ],
   [/saving/i, () => "Counting savings lowers the coverage you need, but that money then can't also be your emergency fund or retirement savings."],

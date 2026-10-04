@@ -42,6 +42,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `services/profileStore.ts` | The `ProfileStore` interface for the profile, change log and checked next steps, with a browser-storage implementation. Can move to the backend later. |
 | `services/ai.ts` | Calls the backend's `/v1/ai/extract` and `/v1/ai/chat` (streamed). If the backend says AI is unavailable, it switches the app to the local parser and standard answers. |
 | `services/fallback.ts` | Standard, keyword-matched answers for the Chat tab when live AI isn't available. |
+| `services/fallback.test.ts` | Checks that each suggested Chat question gets its matching standard answer. |
 | `services/support.ts` | The `SupportService` interface for "Talk to a licensed Lincoln Financial representative" callback requests, sending them to the backend and reporting whether they were received, rejected, or can't be sent yet. |
 | `services/support.test.ts` | Unit tests for how each backend response (sent, not connected, invalid, failed) is reported. |
 | `services/preferences.ts` | Display settings (text size, high contrast, easier-to-read font): loads and saves them in this browser and applies them to the page. |
