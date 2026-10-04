@@ -13,8 +13,8 @@ npm run dev          # http://localhost:5173
 ```
 
 The app works fully without the backend: sign-up, profile and change log live in this browser,
-onboarding uses the local parser, and Chat uses standard answers. When the backend's AI endpoints
-exist (below), live answers turn on with no frontend change. In dev, Vite proxies `/v1/*` to
+onboarding uses the local parser, and Chat uses standard answers. The backend's AI endpoints
+exist (below); live answers turn on with no frontend change once an AI model is configured there. In dev, Vite proxies `/v1/*` to
 `http://localhost:8000`; override with `API_PROXY_TARGET=http://localhost:8001 npm run dev`.
 
 ## Checks (the same ones CI runs)
@@ -32,7 +32,8 @@ npm run build        # tsc -b && vite build
 - **No model keys or prompts in the browser.** The frontend calls backend endpoints; the server
   owns the system prompts.
 - **Auth and storage sit behind interfaces** (`services/auth.ts`, `services/profileStore.ts`).
-  The current implementations use `localStorage` and never store passwords.
+  Google sign-in is verified by the backend when it's running; email accounts and profiles are
+  still kept in `localStorage`. Passwords are never stored.
 - Light theme only. Money uses full dollars wherever it's explained, compact ($1.43M) on tiles.
 
 ## Display settings (accessibility)
@@ -97,12 +98,17 @@ admin rights on the GitHub repo does this once:
    - set the backend's `CORS_ORIGINS` to it (only needed when `VITE_API_BASE_URL` points to a
      backend on another domain).
 
+The team's Amplify app is at `https://main.d2g8j1b83mvwk9.amplifyapp.com` (password-protected;
+ask the team for access). The backend runs on AWS ECS and redeploys on every merge to `main`
+(`.github/workflows/backend-deploy.yml`); [../backend/docs/deploy-ecs.md](../backend/docs/deploy-ecs.md)
+step 7 covers pointing `VITE_API_BASE_URL` at it.
+
 Every push to `main` redeploys. `VITE_*` values are baked in at build time, so redeploy after
 changing them. Never put secrets in them: they end up in the public JavaScript.
 
-## Backend AI contract (to be built on the FastAPI side)
+## Backend AI contract (built in `backend/app/api/ai.py`)
 
-Both endpoints should return **503** when no model is configured. The frontend treats 404, 501,
+Both endpoints return **503** when no model is configured. The frontend treats 404, 501,
 503 and network errors as "AI unavailable" and falls back for the rest of the page session.
 
 ### `POST /v1/ai/extract`
@@ -192,10 +198,14 @@ See [FILE_GUIDE.md](FILE_GUIDE.md) for a description of every file.
 
 ```text
 src/
-  domain/      pure logic: profile model + question flow, compute(), tradeoffs, parser (+ tests)
-  services/    auth, profileStore, ai (backend calls), fallback answers, storage, http
+  domain/      pure logic: profile model + question flow, compute(), tradeoffs, parser,
+               glossary of terms, number explanations (+ tests)
+  services/    auth, google sign-in, profileStore, ai (backend calls), fallback answers,
+               support (callback requests), preferences (display settings), storage, http
   state/       AppProvider (app-wide state) and useApp()
-  components/  Layout (top bar), RouteGuard, ChatLog, StackedBar, TradeoffCards
+  components/  Layout (top bar), AccessibilityMenu, RouteGuard, ChatLog, StackedBar,
+               TradeoffCards, Tip (term and number explanations), CallbackDialog, GoogleButton
   pages/       Auth, Onboarding, Dashboard, Breakdown, MyInfo, Chat
-  test/        Vitest setup and the end-to-end flow test
+  test/        Vitest setup and app-level flow tests (sign-up to dashboard, Google sign-in,
+               callback form, display settings, explanations, Breakdown)
 ```

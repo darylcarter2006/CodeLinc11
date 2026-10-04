@@ -15,7 +15,7 @@ main.tsx → BrowserRouter → AppProvider (state/AppContext.tsx) → App.tsx (r
     /info        MyInfoPage     │
     /chat        ChatPage       ┘─ services/ai.ts (chat) or services/fallback.ts
   RouteGuard sends each user to the right area: not signed in → auth, not confirmed → onboarding.
-State is saved through services/auth.ts and services/profileStore.ts (browser storage for now).
+State is saved through services/auth.ts and services/profileStore.ts. Google sign-in is verified by the backend when it's running; profiles are still kept in browser storage.
 ```
 
 ## Logic (`src/domain/`)
@@ -36,8 +36,8 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 
 | File | What it does |
 |---|---|
-| `services/auth.ts` | The `AuthService` interface and a local implementation (one account per browser, name and email only, passwords never stored). Handles email sign-up/log-in and Google sign-in. A real provider can replace it. |
-| `services/google.ts` | Google sign-in support: loads Google's sign-in script and reads name and email from the Google token after checking it was issued for this app, hasn't expired and has a verified email. |
+| `services/auth.ts` | The `AuthService` interface and a local implementation (one account per browser, name and email only, passwords never stored). Handles email sign-up/log-in (browser-only) and Google sign-in, which the backend verifies when it's running and stores an account token for; falls back to a browser-only account without a backend. |
+| `services/google.ts` | Google sign-in support: loads Google's sign-in script, sends the Google token to `POST /v1/auth/google` for verification, revokes the account token on sign-out, and, without a backend, reads name and email from the token after checking it was issued for this app, hasn't expired and has a verified email. |
 | `services/google.test.ts` | Unit tests for reading Google tokens, including tokens for another app, expired tokens and unverified emails. |
 | `services/profileStore.ts` | The `ProfileStore` interface for the profile, change log and checked next steps, with a browser-storage implementation. Can move to the backend later. |
 | `services/ai.ts` | Calls the backend's `/v1/ai/extract` and `/v1/ai/chat` (streamed). If the backend says AI is unavailable, it switches the app to the local parser and standard answers. |
@@ -99,6 +99,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 |---|---|
 | `src/test/explanations.test.tsx` | Explanations in the app: a dashboard number on keyboard focus (and Escape), a term on hover and tap, and the Breakdown starting point and range. |
 | `src/test/flow.test.tsx` | End-to-end: sign up → answer every onboarding question with the local parser → confirm → dashboard tiles match `compute()` → edit income → tiles update and a log entry appears. Also example mode → "Why?" → standard answer, and an inline sign-up error. |
+| `src/test/google-backend.test.tsx` | Google sign-in through the backend: a verified sign-in stores the account, sign-out revokes the token, an expired token counts as signed out, a Google account can't be opened with the email form, and on a shared browser a different Google account starts fresh while the same one keeps its profile. |
 | `src/test/google.test.tsx` | Google sign-in flows: not set up, a new Google user, a returning user who keeps their answers, and a rejected token. |
 | `src/test/accessibility.test.tsx` | The display settings menu: changing each setting, remembering them on the next visit, reset, and closing with Escape. |
 | `src/test/breakdown.test.tsx` | The Breakdown page when existing coverage already covers the need: it says so and shows no starting-point figure. |
