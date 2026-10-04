@@ -85,9 +85,11 @@ Assumptions: `REPLACE = 0.75`, `FINAL = 15000`, `COLLEGE = { public: 100000, hal
 
 ```
 kids     = deps has "kids" ? children : 0
-years    = deps has "none" ? 0 : years
+entered  = deps has "none" ? 0 : years
+years    = max(entered, kids > 0 ? max(0, 18 − youngest) : 0)   # support reaches the youngest's 18th birthday
 lines:
   c1 Income replacement = income × 0.75 × years        how: "75% of $X × N years"
+                                                        (+ " (until your youngest turns 18; you entered E)" when years > entered)
   c2 Debts to clear      = mortgage + otherDebt
   c3 College             = kids × COLLEGE[college]
   c4 Final expenses      = 15,000
@@ -100,6 +102,8 @@ high      = ceil(gap × 1.15 / 25,000) × 25,000
 termNeed  = max(years, mortgage > 0 ? mortgageYears : 0)
 term      = first of [10, 15, 20, 25, 30] that is ≥ termNeed, else 30
 ```
+
+**Years floor (added October 3, 2026).** If children rely on the person, income support always lasts at least until the youngest turns 18, even when fewer years were entered. The extra years are never hidden: the "how" text, the Dashboard's "Your situation" and My info all say when the estimate uses more years than entered. The backend's `app/domain/compass.py` mirrors this rule. The three test vectors below are unchanged, since each already reaches the youngest's 18th birthday.
 
 When `gap === 0`, the Breakdown headline says what they have already covers the estimate. Don't show a number in that case.
 
