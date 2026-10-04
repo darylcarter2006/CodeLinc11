@@ -25,7 +25,10 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `domain/profile.ts` | The `Profile` and `SavedProfile` types, the Maya example, field labels, display helpers, and the onboarding question order with each question's condition and quick replies. |
 | `domain/needs.ts` | The needs calculation, ported exactly from the prototype: income replacement, debts, college, final expenses, the gap, the rounded starting point, range and term. Also builds the personalized tradeoff cards and next-steps checklist. |
 | `domain/parse.ts` | The local answer parser (understands "85k", "2x salary", "until my youngest is 22", and so on), `clean()` to keep only valid values from the AI or the parser, and `applyUpdates()` to merge answers with the derived rules. |
+| `domain/glossary.ts` | Plain-language definitions of insurance terms (term life, whole life, cash value, laddering, group life and more) and `findTerms()`, which finds them in a sentence. |
+| `domain/explain.ts` | One-sentence explanations of the key numbers (coverage in place, estimated need, left to cover, term, range) built from the person's own values. |
 | `domain/format.ts` | Money formatting: full dollars (`$1,408,500`), compact (`$1.41M`), and short dates. |
+| `domain/glossary.test.ts`, `domain/explain.test.ts` | Unit tests for finding terms in text and for each number explanation (checked against Maya's example). |
 | `domain/needs.test.ts` | Unit tests: the three handoff test vectors, rounding and term edges, tradeoffs and next steps. |
 | `domain/parse.test.ts` | Unit tests: a table of phrases → parsed values, `clean()` rejecting bad input, and the merge rules. |
 
@@ -60,6 +63,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 | `components/RouteGuard.tsx` | Redirects users to the area they belong in, and sends `/` to the right start page. |
 | `components/ChatLog.tsx` | Chat building blocks shared by onboarding and Chat: the message list (announced to screen readers), quick-reply chips, and the input form. |
 | `components/StackedBar.tsx` | Horizontal stacked bars with hover tooltips, plus the direct-labeled legend. |
+| `components/Tip.tsx` | Hover/focus/tap explanations: `Term` (an insurance term with its definition), `WithTerms` (adds terms to a sentence) and `NumberInfo` (an "i" button that explains a number). Kept on screen on phones; Escape closes. |
 | `components/TradeoffCard.tsx` | Tradeoff cards, optionally with the Term/Whole comparison. |
 | `components/CallbackDialog.tsx` | The "Talk to a licensed Lincoln Financial representative" form: name, email or phone, best time, what they need help with, and an opt-in summary of their estimate and recent questions. Validates inline and says plainly when requests can't be sent yet. |
 | `components/GoogleButton.tsx` | The "Sign up / Sign in with Google" button. Shows Google's official button when a client ID is set, otherwise a look-alike that explains Google sign-in isn't set up yet. |
@@ -89,6 +93,7 @@ State is saved through services/auth.ts and services/profileStore.ts (browser st
 
 | File | What it does |
 |---|---|
+| `src/test/explanations.test.tsx` | Explanations in the app: a dashboard number on keyboard focus (and Escape), a term on hover and tap, and the Breakdown starting point and range. |
 | `src/test/flow.test.tsx` | End-to-end: sign up → answer every onboarding question with the local parser → confirm → dashboard tiles match `compute()` → edit income → tiles update and a log entry appears. Also example mode → "Why?" → standard answer, and an inline sign-up error. |
 | `src/test/google.test.tsx` | Google sign-in flows: not set up, a new Google user, a returning user who keeps their answers, and a rejected token. |
 | `src/test/breakdown.test.tsx` | The Breakdown page when existing coverage already covers the need: it says so and shows no starting-point figure. |
