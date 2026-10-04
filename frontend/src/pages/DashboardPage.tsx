@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Legend, StackedBar } from '../components/StackedBar'
+import { NumberInfo, WithTerms } from '../components/Tip'
 import { TradeoffCards } from '../components/TradeoffCard'
+import { explainInPlace, explainLeft, explainNeed, explainTerm } from '../domain/explain'
 import { fmt, short, shortDate } from '../domain/format'
 import { compute, coveredPct, nextSteps, tradeoffs } from '../domain/needs'
 import { EXAMPLE_NAME, depsText, hasKids } from '../domain/profile'
@@ -46,10 +48,10 @@ export function DashboardPage() {
       )}
 
       <div className="tiles">
-        <Tile tone="have" k="Coverage in place" v={short(c.existing)} s={`${pct}% of the estimated need`} />
-        <Tile tone="need" k="Estimated need" v={short(c.total)} s="Income, debts, college, final costs" />
-        <Tile tone="left" k="Left to cover" v={short(c.gap)} s={`Starting point ${short(c.suggested)}`} />
-        <Tile tone="term" k="Suggested term" v={`${c.term} yrs`} s={`Matches your longest need (${c.termNeed} yrs)`} />
+        <Tile tone="have" k="Coverage in place" v={short(c.existing)} s={`${pct}% of the estimated need`} info={explainInPlace(p, c)} />
+        <Tile tone="need" k="Estimated need" v={short(c.total)} s="Income, debts, college, final costs" info={explainNeed(c)} />
+        <Tile tone="left" k="Left to cover" v={short(c.gap)} s={`Starting point ${short(c.suggested)}`} info={explainLeft(c)} />
+        <Tile tone="term" k="Suggested term" v={`${c.term} yrs`} s={`Matches your longest need (${c.termNeed} yrs)`} info={explainTerm(p, c)} />
       </div>
 
       <div className="dash">
@@ -83,7 +85,7 @@ export function DashboardPage() {
                   <span className="amt">{fmt(amt)}</span>
                   <span className="dt">
                     <span className={`pill ${tone}`}>{pill}</span>
-                    {detail}
+                    <WithTerms text={detail} />
                   </span>
                 </div>
               ))}
@@ -178,10 +180,12 @@ export function DashboardPage() {
   )
 }
 
-function Tile({ tone, k, v, s }: { tone: string; k: string; v: string; s: string }) {
+function Tile({ tone, k, v, s, info }: { tone: string; k: string; v: string; s: string; info: string }) {
   return (
     <div className={`card tile ${tone}`} data-testid={`tile-${tone}`}>
-      <div className="k">{k}</div>
+      <div className="k">
+        {k} <NumberInfo label={k.toLowerCase()} explanation={info} testId={`info-${tone}`} />
+      </div>
       <div className="v">{v}</div>
       <div className="s">{s}</div>
     </div>

@@ -1,8 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Legend, StackedBar } from '../components/StackedBar'
+import { NumberInfo, WithTerms } from '../components/Tip'
 import { TradeoffCards } from '../components/TradeoffCard'
+import { explainInPlace, explainLeft, explainNeed, explainRange, explainTerm } from '../domain/explain'
 import { fmt, short } from '../domain/format'
 import { compute, tradeoffs, type Calculation } from '../domain/needs'
+import type { Profile } from '../domain/profile'
 import { useApp } from '../state/context'
 
 /* Breakdown: the headline starting point, every line of the math with "Why?", and tradeoffs. */
@@ -24,7 +27,7 @@ export function BreakdownPage() {
         </Link>
       </div>
       <div className="results">
-        <Headline c={c} isExample={isExample} />
+        <Headline p={p} c={c} isExample={isExample} />
 
         <div className="card pad">
           <div className="sec-head">
@@ -81,7 +84,7 @@ export function BreakdownPage() {
                   <tr key={l.key}>
                     <td>
                       <span className="sw" style={{ background: `var(--${l.key})` }} />
-                      {l.label}
+                      <WithTerms text={l.label} />
                       <div className="how">{l.how}</div>
                       <button className="why-btn" type="button" onClick={() => why(l.label)}>
                         Why?
@@ -132,7 +135,7 @@ export function BreakdownPage() {
   )
 }
 
-function Headline({ c, isExample }: { c: Calculation; isExample: boolean }) {
+function Headline({ p, c, isExample }: { p: Profile; c: Calculation; isExample: boolean }) {
   if (c.gap === 0)
     return (
       <div className="card pad">
@@ -150,24 +153,25 @@ function Headline({ c, isExample }: { c: Calculation; isExample: boolean }) {
         <div>
           <div className="eyebrow">{isExample ? 'Example result · ' : ''}A reasonable starting point</div>
           <div className="figure" data-testid="suggested">
-            {fmt(c.suggested)}
+            {fmt(c.suggested)} <NumberInfo label="the starting point" explanation={explainLeft(c)} testId="info-suggested" />
           </div>
           <div className="muted small">
             Comfortable range{' '}
             <b className="num ink">
               {fmt(c.low)} – {fmt(c.high)}
             </b>
+            <NumberInfo label="the range" explanation={explainRange(c)} testId="info-range" />
           </div>
         </div>
         <div className="facts">
           <span>
-            Suggested term <b>{c.term} years</b>
+            Suggested term <b>{c.term} years</b> <NumberInfo label="the suggested term" explanation={explainTerm(p, c)} testId="info-term" />
           </span>
           <span>
-            Total need <b>{fmt(c.total)}</b>
+            Total need <b>{fmt(c.total)}</b> <NumberInfo label="the total need" explanation={explainNeed(c)} testId="info-total" />
           </span>
           <span>
-            Already in place <b>{fmt(c.existing)}</b>
+            Already in place <b>{fmt(c.existing)}</b> <NumberInfo label="what's already in place" explanation={explainInPlace(p, c)} testId="info-existing" />
           </span>
         </div>
       </div>

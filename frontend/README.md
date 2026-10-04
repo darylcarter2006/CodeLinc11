@@ -144,6 +144,19 @@ the handoff (section 6):
 Response: the answer as a streamed `text/plain` body (chunks are appended as they arrive).
 Return **429** when rate limited; the UI shows "That's a lot of questions at once."
 
+## Explanations for terms and numbers
+
+- **Insurance terms** (term life, whole life, cash value, laddering, group life, final expenses and
+  more) have a dotted underline in tradeoff cards, coverage sources and the Breakdown table. Hover,
+  tab to or tap one to see a plain-language definition. Definitions live in
+  `src/domain/glossary.ts`; add a term there and it's picked up automatically.
+- **Key numbers** on the Dashboard tiles and the Breakdown headline have a small **i** button that
+  shows how the number was worked out with the person's own values (`src/domain/explain.ts`).
+
+Both use `components/Tip.tsx`: it opens on hover, keyboard focus or tap, closes on Escape, and is
+positioned to stay on screen on phones. Terms aren't added inside checkbox labels (the Next steps
+list), since a button inside a label is confusing for keyboard and screen-reader users.
+
 ## Talk to a licensed Lincoln Financial representative
 
 The Chat tab has a **Talk to a licensed Lincoln Financial representative** link for users the assistant isn't helping.
