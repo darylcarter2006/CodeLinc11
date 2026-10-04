@@ -152,16 +152,41 @@ authorized.
 
 ## 8. Deploying a new version
 
-1. Merge to `main`. If the change includes a migration, run `alembic upgrade head` against RDS
-   first (see `database-setup.md`).
-2. Run `backend/scripts/push-image.sh`.
-3. In **ECS → your service → Update**, set the new image URI (or keep `:latest` and choose
-   **Force new deployment**).
+**Automatic:** every merge to `main` that changes `backend/` runs
+[`.github/workflows/backend-deploy.yml`](../../.github/workflows/backend-deploy.yml). It runs the
+tests, builds and pushes the image (tagged with the commit), points the service at it with
+[`scripts/deploy-ecs.sh`](../scripts/deploy-ecs.sh), and waits until `/v1/ready` is ok. Watch it
+under **GitHub → Actions → backend-deploy**. Only the image changes; the service's environment
+variables and secret stay as they are.
+
+**If the merge adds a database migration,** the workflow stops before deploying, because
+GitHub's servers can't reach RDS. Run `alembic upgrade head` against RDS from the office (see
+`database-setup.md`), then start it by hand: **Actions → backend-deploy → Run workflow**.
+
+**By hand** (same result, from your laptop):
+
+```bash
+backend/scripts/push-image.sh                       # prints the image URI
+backend/scripts/deploy-ecs.sh <image-uri>           # swaps the image and waits until healthy
+```
+
+**How GitHub signs in to AWS:** this AWS organization blocks GitHub's keyless (OIDC) sign-in, so
+the workflow uses the IAM user `github-actions-coverage-compass-deploy`. Its access key is stored
+only as the repository secrets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. The user can only
+push to the `coverage-compass-backend` repository and read or update this one ECS service. It
+can't read the database secret, see RDS, or delete anything. To replace the key: create a new key
+for that user in IAM, update both secrets (`gh secret set AWS_ACCESS_KEY_ID`, and the same for
+the secret key), then delete the old key.
+
+**Changing environment variables** (for example `AI_PROVIDER`) isn't done by the workflow. Use
+**ECS → the service → Update service**, or ask whoever owns the AWS account.
 
 ## 9. When the hackathon is over
 
 Delete the Express service (this also removes its load balancer), then delete the ECR images
-and the secret if they're no longer needed. Stop RDS too if nobody is using it.
+and the secret if they're no longer needed. Stop RDS too if nobody is using it. Also delete the
+IAM user `github-actions-coverage-compass-deploy` and the two GitHub secrets, and disable the
+`backend-deploy` workflow.
 
 ## Troubleshooting
 
