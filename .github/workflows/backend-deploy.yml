@@ -1,0 +1,99 @@
+name: backend-deploy
+
+# Deploys the backend to Amazon ECS (Express Mode) on every merge to main that changes
+# backend/. Can also be started by hand from the Actions tab ("Run workflow").
+# See backend/docs/deploy-ecs.md for the setup this relies on.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-deploy.yml"
+  workflow_dispatch:
+
+# One deploy at a time; a newer merge waits for the running deploy instead of cancelling it.
+concurrency:
+  group: backend-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: coverage-compass-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Test before deploying
+        working-directory: backend
+        run: |
+          pip install -e ".[dev]"
+          pytest -q
+
+      # GitHub's servers can't reach RDS (it only accepts the office network and the ECS
+      # service), so new migrations must be applied by a person before the new code runs.
+      - name: Stop if this merge adds database migrations
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BEFORE="$(git rev-parse HEAD~1)"
+          fi
+          NEW=$(git diff --name-only --diff-filter=A "$BEFORE" HEAD -- backend/app/db/migrations/versions)
+          if [ -n "$NEW" ]; then
+            echo "::error::This merge adds database migrations:"
+            echo "$NEW"
+            echo "::error::Run 'alembic upgrade head' against RDS (backend/docs/database-setup.md), then start this workflow by hand: Actions → backend-deploy → Run workflow."
+            exit 1
+          fi
+
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Make sure the AWS CLI knows ECS Express Mode
+        run: |
+          aws --version
+          if ! aws ecs update-express-gateway-service help >/dev/null 2>&1; then
+            curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+            unzip -q /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install --update
+            aws --version
+          fi
+
+      - name: Build and push the image
+        id: image
+        run: |
+          backend/scripts/push-image.sh
+          ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
+          TAG="$(git rev-parse --short HEAD)"
+          echo "uri=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to ECS and wait until healthy
+        run: backend/scripts/deploy-ecs.sh "${{ steps.image.outputs.uri }}"
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            echo "### Backend deployed"
+            echo "- Image: \`${{ steps.image.outputs.uri }}\`"
+            echo "- Commit: ${{ github.sha }}"
+          } >> "$GITHUB_STEP_SUMMARY"
