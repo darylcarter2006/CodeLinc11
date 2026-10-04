@@ -77,7 +77,10 @@ def build_google_verifier(settings: Settings) -> GoogleTokenVerifier | None:
 
 
 def build_ai_adapter(settings: Settings) -> AIAdapter:
-    # "bedrock" is added here in implementation step 5.
+    if settings.ai_provider == "anthropic":
+        from app.ai.claude import ClaudeAdapter
+
+        return ClaudeAdapter(settings)
     return StubAIAdapter()
 
 

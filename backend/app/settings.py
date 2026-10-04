@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -22,8 +22,20 @@ class Settings(BaseSettings):
     )
 
     repository_backend: Literal["memory", "postgres"] = "memory"
-    ai_provider: Literal["stub"] = "stub"
-    ai_timeout_seconds: float = 15.0
+    # "stub": no model (the AI endpoints return 503 and the front end uses its fallbacks).
+    # "anthropic": Claude through the Anthropic API; requires ANTHROPIC_API_KEY.
+    ai_provider: Literal["stub", "anthropic"] = "stub"
+    # Seconds to wait for a reply to start (with thinking, the first text can take a moment).
+    ai_timeout_seconds: float = 30.0
+    # Never log or return this. Locally it comes from .env; on ECS from Secrets Manager.
+    anthropic_api_key: SecretStr | None = None
+    # "fast" handles onboarding extraction, "smart" the Chat tab. Both default to Claude Sonnet.
+    ai_model_fast: str = "claude-sonnet-5-5"
+    ai_model_smart: str = "claude-sonnet-5-5"
+    ai_effort: Literal["low", "medium", "high"] = "low"
+    # Server-side refusal fallbacks (Claude API only): if Claude declines a request in a
+    # category Anthropic can route, the API retries it on another model in the same call.
+    ai_refusal_fallbacks: bool = True
     # Per client IP, across /v1/ai/extract and /v1/ai/chat combined.
     ai_rate_limit_per_minute: int = Field(default=20, ge=1)
 
@@ -90,6 +102,13 @@ class Settings(BaseSettings):
                 "GOOGLE_CLIENT_ID should look like <numbers>-<id>.apps.googleusercontent.com"
             )
         return value.strip() if value is not None else None
+
+    @model_validator(mode="after")
+    def _provider_needs_key(self) -> Settings:
+        key = self.anthropic_api_key.get_secret_value().strip() if self.anthropic_api_key else ""
+        if self.ai_provider == "anthropic" and not key:
+            raise ValueError("AI_PROVIDER=anthropic requires ANTHROPIC_API_KEY")
+        return self
 
     @field_validator("db_ssl_root_cert")
     @classmethod

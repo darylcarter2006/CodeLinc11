@@ -100,7 +100,7 @@ admin rights on the GitHub repo does this once:
 Every push to `main` redeploys. `VITE_*` values are baked in at build time, so redeploy after
 changing them. Never put secrets in them: they end up in the public JavaScript.
 
-## Backend AI contract (to be built on the FastAPI side)
+## Backend AI contract (implemented in `backend/app/api/ai.py`, answered by Claude)
 
 Both endpoints should return **503** when no model is configured. The frontend treats 404, 501,
 503 and network errors as "AI unavailable" and falls back for the rest of the page session.

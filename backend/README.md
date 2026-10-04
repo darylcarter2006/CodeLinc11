@@ -92,7 +92,15 @@ contract"), including its camelCase field names. They need no session or token, 
 frontend calls them before an account exists, so they are rate limited per client IP
 (`AI_RATE_LIMIT_PER_MINUTE`, default 20).
 
-- **No model configured (the default stub):** both return **503** `ai_unavailable`. The
+- **Provider:** Claude through the Anthropic API (`app/ai/claude.py`, official `anthropic`
+  SDK) when `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` are set; Claude Sonnet
+  (`claude-sonnet-5-5`) for both extraction and chat by default, adaptive thinking at `low`
+  effort, and server-side refusal fallbacks on. Override with `AI_MODEL_FAST`,
+  `AI_MODEL_SMART`, `AI_EFFORT` and `AI_REFUSAL_FALLBACKS`. The app refuses to start if
+  `AI_PROVIDER=anthropic` has no key. A refusal from Claude is treated as a failure, never
+  shown as an answer. A bad key or unknown model returns 503 (the front end falls back); rate
+  limits return 429; other errors return 502 (chat) or empty fields (extraction).
+- **No model configured (`AI_PROVIDER=stub`, the default):** both return **503** `ai_unavailable`. The
   frontend then uses its local parser and standard answers.
 - **Extract:** the prompt is built on the server from the handoff. The model's `updates` pass
   through `clean()` in `app/domain/compass.py`, a port of the frontend's validator. A link in
@@ -173,9 +181,6 @@ Each item matches a step in blueprint §13. Its interface is already in place.
   `session_lock` is a no-op there. Two simultaneous retries can both call the model; one gets
   409 and its next retry replays. To close that gap, insert a *pending* idempotency record
   before the model call.
-- **Bedrock** (issue #5): implement `generate` and `stream` in `ai/bedrock.py` (plain text
-  in and out; prompts and validation already live in `services/compass_ai.py`), then select it
-  in `container.build_ai_adapter`.
 - **Income-estimation sub-flow:** needs `annual_income` and expense-share fields.
 - **Assumption-flag questions:** the mortgage/education double-count flags can be set by
   PATCH, and the calculator warns about them, but the chat doesn't ask yet.

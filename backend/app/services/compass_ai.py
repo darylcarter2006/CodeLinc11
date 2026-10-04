@@ -28,8 +28,10 @@ from app.errors import AIFailed, AIUnavailable, RateLimited, ValidationFailed
 
 logger = logging.getLogger(__name__)
 
-EXTRACT_MAX_TOKENS = 400
-CHAT_MAX_TOKENS = 600
+# Ceilings, not targets: thinking counts toward max_tokens, so leave room beyond the short
+# replies the prompts ask for (an 8-word ack, a <120-word answer).
+EXTRACT_MAX_TOKENS = 4000
+CHAT_MAX_TOKENS = 8000
 CHAT_HISTORY_TURNS = 8
 ACK_MAX_WORDS = 8
 ACK_MAX_CHARS = 120
