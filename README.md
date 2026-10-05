@@ -285,6 +285,7 @@ Built together by team **Spartans** for codeLinc 11:
 - [@darylcarter2006](https://github.com/darylcarter2006)
 - [@hmpears2](https://github.com/hmpears2) / [@pearshm2](https://github.com/pearshm2)
 - [@SMmaanaki-stack](https://github.com/SMmaanaki-stack)
+- [@CRoan3](https://github.com/CRoan3)
 
 ---
 
